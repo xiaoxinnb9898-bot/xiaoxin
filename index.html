@@ -1,163 +1,193 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
 <meta charset="UTF-8">
 <title>数据提取系统</title>
 <style>
 *{box-sizing:border-box}
 body{font-family:微软雅黑;background:#f4f6f8;margin:0;padding:20px}
-.box{max-width:500px;margin:30px auto;background:#fff;padding:25px;border-radius:16px;box-shadow:0 2px 10px #00000010}
+.box{max-width:520px;margin:30px auto;background:#fff;padding:28px;border-radius:16px;box-shadow:0 2px 10px #00000010}
 h2{text-align:center;margin-top:0}
 input,button{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #ddd}
 button{background:#007bff;color:white;border:none;cursor:pointer}
+.gray{background:#6c757d}
 .red{color:red}
 .green{color:green}
 .center{text-align:center}
 .hide{display:none}
+.keylist{margin-top:15px;max-height:300px;overflow-y:auto}
+.keyitem{padding:10px;border-bottom:1px solid #eee}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-</head>
-<body>
-<div class="box">
+
+<!-- 用户提取界面 -->
+<div class="box" id="user-page">
   <h2>🔐 数据提取</h2>
-  <div id="loading" class="center">正在加载数据，请稍候...</div>
-  <div id="main" class="hide">
-    <input id="u_key" placeholder="请输入卡密">
-    <input id="u_cnt" type="number" value="10" min="1" placeholder="你需要多少条数据">
-    <div id="u_msg" class="center"></div>
-    <button onclick="userExtract()">提取并导出TXT</button>
-  </div>
-  <div id="error" class="hide center red">
-    <p>数据加载失败，请联系管理员</p>
-  </div>
+  <input id="key-input" placeholder="请输入卡密">
+  <input id="count-input" type="number" min="1" value="10" placeholder="你需要多少条数据">
+  <div id="tip" class="center"></div>
+  <button onclick="extract()">提取并导出TXT</button>
+  <button class="gray" onclick="showAdminLogin()">管理后台</button>
+</div>
+
+<!-- 管理员登录 -->
+<div class="box hide" id="admin-login-page">
+  <h2>🔑 管理员登录</h2>
+  <input id="pwd-input" type="password" placeholder="管理员密码">
+  <div id="login-tip" class="center red"></div>
+  <button onclick="adminLogin()">登录</button>
+  <button class="gray" onclick="showUser()">返回提取页</button>
+</div>
+
+<!-- 管理后台 -->
+<div class="box hide" id="admin-page">
+  <h2>⚙️ 卡密管理后台</h2>
+  <input id="create-num" type="number" value="10" min="1" max="100" placeholder="生成数量">
+  <button onclick="createKeys()">生成卡密</button>
+  <button onclick="loadKeyList()">刷新列表</button>
+  <button class="gray" onclick="showUser()">返回提取页</button>
+  <div class="center green" id="key-info"></div>
+  <div class="keylist" id="key-list"></div>
 </div>
 
 <script>
-// 🔴 核心修复：纯英文文件名，彻底解决编码问题
-const DATA_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.xlsx";
-let allData = [];
-let usedData = [];
-let keys = [];
+// ==================== 配置 ====================
+const ADMIN_PASSWORD = "admin123";
 
-// 本地存储持久化
-function loadFromStorage() {
-  const savedKeys = localStorage.getItem("sys_keys");
-  const savedUsed = localStorage.getItem("sys_used");
-  if(savedKeys) keys = JSON.parse(savedKeys);
-  if(savedUsed) usedData = JSON.parse(savedUsed);
+// 模拟你的数据（可换成Excel）
+let totalData = [];
+for (let i = 1; i <= 500; i++) totalData.push("数据_" + i);
+
+// ==================== 本地存储（互通核心） ====================
+function getKeys() {
+  return JSON.parse(localStorage.getItem("keys") || "[]");
 }
-function saveToStorage() {
-  localStorage.setItem("sys_keys", JSON.stringify(keys));
-  localStorage.setItem("sys_used", JSON.stringify(usedData));
+function setKeys(keys) {
+  localStorage.setItem("keys", JSON.stringify(keys));
+}
+function getUsedData() {
+  return JSON.parse(localStorage.getItem("usedData") || "[]");
+}
+function setUsedData(arr) {
+  localStorage.setItem("usedData", JSON.stringify(arr));
 }
 
-// 加载Excel数据（核心修复：增加兜底+重试）
-async function loadExcel() {
-  loadFromStorage();
-  try {
-    const res = await fetch(DATA_URL + "?t=" + new Date().getTime(), {
-      cache: "no-store",
-      mode: "cors"
-    });
-    
-    if (!res.ok) throw new Error(`HTTP错误: ${res.status}`);
-    
-    const buf = await res.arrayBuffer();
-    const wb = XLSX.read(buf);
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: true });
-    
-    // 提取A列有效数据，去重+空值兜底
-    allData = raw
-      .map(row => {
-        const cell = row[0];
-        return cell === null || cell === undefined ? "" : String(cell).trim();
-      })
-      .filter(c => c !== "")
-      .filter((v, i, self) => self.indexOf(v) === i);
-    
-    // 加载成功，显示主界面
-    document.getElementById("loading").classList.add("hide");
-    document.getElementById("main").classList.remove("hide");
-    document.getElementById("error").classList.add("hide");
-  } catch (e) {
-    console.error("加载错误详情:", e);
-    // 加载失败，显示错误界面
-    document.getElementById("loading").classList.add("hide");
-    document.getElementById("main").classList.add("hide");
-    document.getElementById("error").classList.remove("hide");
+// ==================== 页面切换 ====================
+function showUser() {
+  document.getElementById("user-page").classList.remove("hide");
+  document.getElementById("admin-login-page").classList.add("hide");
+  document.getElementById("admin-page").classList.add("hide");
+}
+function showAdminLogin() {
+  document.getElementById("user-page").classList.add("hide");
+  document.getElementById("admin-login-page").classList.remove("hide");
+  document.getElementById("admin-page").classList.add("hide");
+}
+function showAdmin() {
+  document.getElementById("user-page").classList.add("hide");
+  document.getElementById("admin-login-page").classList.add("hide");
+  document.getElementById("admin-page").classList.remove("hide");
+  loadKeyList();
+}
+
+// ==================== 管理员功能 ====================
+function adminLogin() {
+  const pwd = document.getElementById("pwd-input").value.trim();
+  if (pwd === ADMIN_PASSWORD) {
+    showAdmin();
+    document.getElementById("login-tip").innerText = "";
+  } else {
+    document.getElementById("login-tip").innerText = "密码错误";
   }
 }
 
-// 页面加载自动执行
-loadExcel();
+function createKeys() {
+  const num = parseInt(document.getElementById("create-num").value) || 1;
+  const keys = getKeys();
+  const newKeys = [];
 
-// 用户提取数据
-function userExtract() {
-  const keyStr = document.getElementById("u_key").value.trim();
-  const needCnt = parseInt(document.getElementById("u_cnt").value) || 1;
-  const msgEl = document.getElementById("u_msg");
-  msgEl.textContent = "";
-  msgEl.className = "center";
-
-  // 校验输入
-  if(!keyStr) {
-    msgEl.className = "center red";
-    msgEl.textContent = "请输入卡密";
-    return;
-  }
-  if(needCnt < 1) {
-    msgEl.className = "center red";
-    msgEl.textContent = "请输入至少1条数据";
-    return;
+  for (let i = 0; i < num; i++) {
+    const k = Math.random().toString(36).slice(2, 10).toUpperCase();
+    keys.push({ key: k, used: false });
+    newKeys.push(k);
   }
 
-  // 校验卡密
-  const targetKey = keys.find(k => k.key === keyStr);
-  if(!targetKey) {
-    msgEl.className = "center red";
-    msgEl.textContent = "卡密不存在";
+  setKeys(keys);
+  alert("生成成功：\n" + newKeys.join("\n"));
+  loadKeyList();
+}
+
+function loadKeyList() {
+  const keys = getKeys();
+  const used = getUsedData();
+  const freeCnt = keys.filter(k => !k.used).length;
+  const usedCnt = keys.filter(k => k.used).length;
+  const remainCnt = totalData.length - used.length;
+
+  document.getElementById("key-info").innerText =
+    `未使用：${freeCnt} | 已使用：${usedCnt} | 剩余数据：${remainCnt}条`;
+
+  let html = "";
+  keys.forEach(k => {
+    const s = k.used ? "已使用" : "未使用";
+    html += `<div class="keyitem">${k.key} — ${s}</div>`;
+  });
+  document.getElementById("key-list").innerHTML = html;
+}
+
+// ==================== 用户提取（核心：互通） ====================
+function extract() {
+  const keyStr = document.getElementById("key-input").value.trim();
+  const need = parseInt(document.getElementById("count-input").value) || 1;
+  const tip = document.getElementById("tip");
+
+  tip.innerText = "";
+  tip.className = "center";
+
+  if (!keyStr) { tip.innerText = "请输入卡密"; return; }
+  if (need < 1) { tip.innerText = "至少1条"; return; }
+
+  const keys = getKeys();
+  const keyItem = keys.find(k => k.key === keyStr);
+
+  if (!keyItem) {
+    tip.innerText = "卡密不存在";
+    tip.className = "center red";
     return;
   }
-  if(targetKey.used) {
-    msgEl.className = "center red";
-    msgEl.textContent = "卡密已使用，无法重复提取";
+  if (keyItem.used) {
+    tip.innerText = "卡密已使用";
+    tip.className = "center red";
     return;
   }
 
-  // 校验数据库存
-  const available = allData.filter(d => !usedData.includes(d));
-  if(available.length === 0) {
-    msgEl.className = "center red";
-    msgEl.textContent = "库里没有数据了，请联系小新";
+  const used = getUsedData();
+  const available = totalData.filter(d => !used.includes(d));
+
+  if (available.length === 0) {
+    tip.innerText = "库里没有数据了，请联系小新";
+    tip.className = "center red";
     return;
   }
-  if(needCnt > available.length) {
-    msgEl.className = "center red";
-    msgEl.textContent = `当前仅剩余${available.length}条数据，请输入不超过该数值`;
+  if (need > available.length) {
+    tip.innerText = `仅剩 ${available.length} 条`;
+    tip.className = "center red";
     return;
   }
 
-  // 提取数据
-  const extractData = available.slice(0, needCnt);
-  usedData.push(...extractData);
-  targetKey.used = true;
-  saveToStorage();
+  // 提取
+  const take = available.slice(0, need);
+  used.push(...take);
+  keyItem.used = true;
+
+  setUsedData(used);
+  setKeys(keys);
 
   // 导出TXT
-  const txtContent = extractData.join("\r\n");
-  const blob = new Blob([txtContent], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
+  const blob = new Blob([take.join("\r\n")], { type: "text/plain" });
   const a = document.createElement("a");
-  a.href = url;
-  a.download = `提取数据_${needCnt}条.txt`;
+  a.href = URL.createObjectURL(blob);
+  a.download = "提取数据.txt";
   a.click();
-  URL.revokeObjectURL(url);
 
-  // 提示成功
-  msgEl.className = "center green";
-  msgEl.textContent = `✅ 提取成功！共提取${needCnt}条数据`;
+  tip.innerText = "✅ 提取成功";
+  tip.className = "center green";
 }
 </script>
-</body>
-</html>
