@@ -30,7 +30,7 @@ button{background:#007bff;color:white;border:none;cursor:pointer}
 <!-- 管理员登录 -->
 <div class="box hide" id="admin-login-page">
   <h2>🔑 管理员登录</h2>
-  <input id="pwd-input" type="password" placeholder="管理员密码">
+  <input id="pwd-input" type="password" placeholder="请输入管理员密码">
   <div id="login-tip" class="center red"></div>
   <button onclick="adminLogin()">登录</button>
   <button class="gray" onclick="showUser()">返回提取页</button>
@@ -49,13 +49,13 @@ button{background:#007bff;color:white;border:none;cursor:pointer}
 
 <script>
 // ==================== 配置 ====================
-const ADMIN_PASSWORD = "xiaoxin123";
+const ADMIN_PASSWORD = "123456";
 
-// 模拟你的数据（可换成Excel）
+// 模拟数据
 let totalData = [];
 for (let i = 1; i <= 500; i++) totalData.push("数据_" + i);
 
-// ==================== 本地存储（互通核心） ====================
+// ==================== 本地存储 ====================
 function getKeys() {
   return JSON.parse(localStorage.getItem("keys") || "[]");
 }
@@ -132,7 +132,7 @@ function loadKeyList() {
   document.getElementById("key-list").innerHTML = html;
 }
 
-// ==================== 用户提取（核心：互通） ====================
+// ==================== 用户提取 ====================
 function extract() {
   const keyStr = document.getElementById("key-input").value.trim();
   const need = parseInt(document.getElementById("count-input").value) || 1;
@@ -172,7 +172,6 @@ function extract() {
     return;
   }
 
-  // 提取
   const take = available.slice(0, need);
   used.push(...take);
   keyItem.used = true;
@@ -180,7 +179,6 @@ function extract() {
   setUsedData(used);
   setKeys(keys);
 
-  // 导出TXT
   const blob = new Blob([take.join("\r\n")], { type: "text/plain" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
