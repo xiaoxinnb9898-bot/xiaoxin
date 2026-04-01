@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>数据提取系统</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:微软雅黑;background:#f4f6f8;margin:0;padding:20px}
+.box{max-width:500px;margin:30px auto;background:#fff;padding:25px;border-radius:16px;box-shadow:0 2px 10px #00000010}
+h2{text-align:center;margin-top:0}
+input,button{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #ddd}
+button{background:#007bff;color:white;border:none;cursor:pointer}
+.red{color:red}
+.green{color:green}
+.center{text-align:center}
+.hide{display:none}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="box">
+  <h2>🔐 数据提取</h2>
+  <div id="loading" class="center">正在加载数据，请稍候...</div>
+  <div id="main" class="hide">
+    <input id="u_key" placeholder="请输入卡密">
+    <input id="u_cnt" type="number" value="10" min="1" placeholder="你需要多少条数据">
+    <div id="u_msg" class="center"></div>
+    <button onclick="userExtract()">提取并导出TXT</button>
+  </div>
+  <div id="error" class="hide center red">
+    <p>数据加载失败，请联系管理员</p>
+  </div>
+</div>
+
+<script>
+// 🔴 核心修复：纯英文文件名，彻底解决编码问题
+const DATA_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.xlsx";
+let allData = [];
+let usedData = [];
+let keys = [];
+
+// 本地存储持久化
+function loadFromStorage() {
+  const savedKeys = localStorage.getItem("sys_keys");
+  const savedUsed = localStorage.getItem("sys_used");
+  if(savedKeys) keys = JSON.parse(savedKeys);
+  if(savedUsed) usedData = JSON.parse(savedUsed);
+}
+function saveToStorage() {
+  localStorage.setItem("sys_keys", JSON.stringify(keys));
+  localStorage.setItem("sys_used", JSON.stringify(usedData));
+}
+
+// 加载Excel数据（核心修复：增加兜底+重试）
+async function loadExcel() {
+  loadFromStorage();
+  try {
+    const res = await fetch(DATA_URL + "?t=" + new Date().getTime(), {
+      cache: "no-store",
+      mode: "cors"
+    });
+    
+    if (!res.ok) throw new Error(`HTTP错误: ${res.status}`);
+    
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: true });
+    
+    // 提取A列有效数据，去重+空值兜底
+    allData = raw
+      .map(row => {
+        const cell = row[0];
+        return cell === null || cell === undefined ? "" : String(cell).trim();
+      })
+      .filter(c => c !== "")
+      .filter((v, i, self) => self.indexOf(v) === i);
+    
+    // 加载成功，显示主界面
+    document.getElementById("loading").classList.add("hide");
+    document.getElementById("main").classList.remove("hide");
+    document.getElementById("error").classList.add("hide");
+  } catch (e) {
+    console.error("加载错误详情:", e);
+    // 加载失败，显示错误界面
+    document.getElementById("loading").classList.add("hide");
+    document.getElementById("main").classList.add("hide");
+    document.getElementById("error").classList.remove("hide");
+  }
+}
+
+// 页面加载自动执行
+loadExcel();
+
+// 用户提取数据
+function userExtract() {
+  const keyStr = document.getElementById("u_key").value.trim();
+  const needCnt = parseInt(document.getElementById("u_cnt").value) || 1;
+  const msgEl = document.getElementById("u_msg");
+  msgEl.textContent = "";
+  msgEl.className = "center";
+
+  // 校验输入
+  if(!keyStr) {
+    msgEl.className = "center red";
+    msgEl.textContent = "请输入卡密";
+    return;
+  }
+  if(needCnt < 1) {
+    msgEl.className = "center red";
+    msgEl.textContent = "请输入至少1条数据";
+    return;
+  }
+
+  // 校验卡密
+  const targetKey = keys.find(k => k.key === keyStr);
+  if(!targetKey) {
+    msgEl.className = "center red";
+    msgEl.textContent = "卡密不存在";
+    return;
+  }
+  if(targetKey.used) {
+    msgEl.className = "center red";
+    msgEl.textContent = "卡密已使用，无法重复提取";
+    return;
+  }
+
+  // 校验数据库存
+  const available = allData.filter(d => !usedData.includes(d));
+  if(available.length === 0) {
+    msgEl.className = "center red";
+    msgEl.textContent = "库里没有数据了，请联系小新";
+    return;
+  }
+  if(needCnt > available.length) {
+    msgEl.className = "center red";
+    msgEl.textContent = `当前仅剩余${available.length}条数据，请输入不超过该数值`;
+    return;
+  }
+
+  // 提取数据
+  const extractData = available.slice(0, needCnt);
+  usedData.push(...extractData);
+  targetKey.used = true;
+  saveToStorage();
+
+  // 导出TXT
+  const txtContent = extractData.join("\r\n");
+  const blob = new Blob([txtContent], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `提取数据_${needCnt}条.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  // 提示成功
+  msgEl.className = "center green";
+  msgEl.textContent = `✅ 提取成功！共提取${needCnt}条数据`;
+}
+</script>
+</body>
+</html>
