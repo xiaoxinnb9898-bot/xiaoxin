@@ -4,7 +4,7 @@
 <style>
 *{box-sizing:border-box}
 body{font-family:微软雅黑;background:#f4f6f8;margin:0;padding:20px}
-.box{max-width:520px;margin:30px auto;background:#fff;padding:28px;border-radius:16px;box-shadow:0 2px 10px #00000010}
+.box{max-width:520px;margin:30px auto;background:#fff;padding:28px;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,0.05)}
 h2{text-align:center;margin-top:0}
 input,button{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #ddd}
 button{background:#007bff;color:white;border:none;cursor:pointer}
@@ -17,7 +17,6 @@ button{background:#007bff;color:white;border:none;cursor:pointer}
 .keyitem{padding:10px;border-bottom:1px solid #eee}
 </style>
 
-<!-- 用户提取界面 -->
 <div class="box" id="user-page">
   <h2>🔐 数据提取</h2>
   <input id="key-input" placeholder="请输入卡密">
@@ -27,19 +26,17 @@ button{background:#007bff;color:white;border:none;cursor:pointer}
   <button class="gray" onclick="showAdminLogin()">管理后台</button>
 </div>
 
-<!-- 管理员登录 -->
 <div class="box hide" id="admin-login-page">
   <h2>🔑 管理员登录</h2>
-  <input id="pwd-input" type="password" placeholder="管理员密码">
+  <input id="pwd-input" type="password" placeholder="输入密码：123456">
   <div id="login-tip" class="center red"></div>
   <button onclick="adminLogin()">登录</button>
   <button class="gray" onclick="showUser()">返回提取页</button>
 </div>
 
-<!-- 管理后台 -->
 <div class="box hide" id="admin-page">
   <h2>⚙️ 卡密管理后台</h2>
-  <input id="create-num" type="number" value="10" min="1" max="100" placeholder="生成数量">
+  <input id="create-num" type="number" value="10" min="1" max="100">
   <button onclick="createKeys()">生成卡密</button>
   <button onclick="loadKeyList()">刷新列表</button>
   <button class="gray" onclick="showUser()">返回提取页</button>
@@ -48,16 +45,27 @@ button{background:#007bff;color:white;border:none;cursor:pointer}
 </div>
 
 <script>
-// ==================== 云端通用核心 ====================
+// ==============================================
+// 【固定密码】一定能登录
+// ==============================================
 const ADMIN_PASSWORD = "123456";
-const GIST_URL = "https://api.github.com/gists/97ec8a851ac7286512d8e3e7b7b9e766";
-let gistToken = ""; // 自动获取
 
-// 测试数据
+// 【固定卡密库】别人也能用
+const SYSTEM_KEYS = [
+  { key: "ABC123", used: false },
+  { key: "DEF456", used: false },
+  { key: "GHI789", used: false },
+  { key: "JKL012", used: false },
+  { key: "MNO345", used: false }
+];
+
+// 你的数据
 let totalData = [];
-for (let i=1; i<=500; i++) totalData.push("数据_"+i);
+for (let i = 1; i <= 500; i++) totalData.push("数据_" + i);
 
-// ==================== 页面切换 ====================
+// ==============================================
+// 页面切换
+// ==============================================
 function showUser() {
   document.getElementById("user-page").classList.remove("hide");
   document.getElementById("admin-login-page").classList.add("hide");
@@ -75,98 +83,64 @@ function showAdmin() {
   loadKeyList();
 }
 
-// ==================== 云端读取 ====================
-async function loadCloud() {
-  let res = await fetch(GIST_URL);
-  let data = await res.json();
-  let file = data.files["data.json"];
-  return JSON.parse(file.content);
-}
-
-// ==================== 登录 ====================
-async function adminLogin() {
-  let pwd = document.getElementById("pwd-input").value.trim();
+// ==============================================
+// 管理员登录（一定成功）
+// ==============================================
+function adminLogin() {
+  const pwd = document.getElementById("pwd-input").value.trim();
   if (pwd === ADMIN_PASSWORD) {
-    let cloud = await loadCloud();
-    gistToken = cloud.token;
     showAdmin();
   } else {
     document.getElementById("login-tip").innerText = "密码错误";
   }
 }
 
-// ==================== 生成卡密（云端） ====================
-async function createKeys() {
-  let num = parseInt(document.getElementById("create-num").value) || 1;
-  let cloud = await loadCloud();
-  let keys = cloud.keys || [];
-  let newKeys = [];
-
-  for (let i=0; i<num; i++) {
-    let k = Math.random().toString(36).slice(2,10).toUpperCase();
-    keys.push({ key:k, used:false });
-    newKeys.push(k);
-  }
-
-  await fetch(GIST_URL, {
-    method: "PATCH",
-    headers: { "Authorization": "token " + gistToken },
-    body: JSON.stringify({
-      files: {
-        "data.json": {
-          content: JSON.stringify({
-            token: gistToken,
-            keys: keys,
-            used: cloud.used || []
-          })
-        }
-      }
-    })
-  });
-
-  alert("生成成功：\n" + newKeys.join("\n"));
-  loadKeyList();
+// ==============================================
+// 加载卡密
+// ==============================================
+function getKeys() {
+  return JSON.parse(JSON.stringify(SYSTEM_KEYS));
 }
 
-// ==================== 加载列表 ====================
-async function loadKeyList() {
-  let cloud = await loadCloud();
-  let keys = cloud.keys || [];
-  let usedData = cloud.used || [];
-
-  let free = keys.filter(k=>!k.used).length;
-  let used = keys.filter(k=>k.used).length;
-  let remain = totalData.length - usedData.length;
-
-  document.getElementById("key-info").innerText =
-    `未使用：${free} | 已使用：${used} | 剩余数据：${remain}条`;
+function loadKeyList() {
+  const keys = getKeys();
+  const free = keys.filter(k => !k.used).length;
+  const used = keys.filter(k => k.used).length;
+  document.getElementById("key-info").innerText = `未使用：${free} | 已使用：${used}`;
 
   let html = "";
-  keys.forEach(k=>{
-    let s = k.used ? "已使用" : "未使用";
+  keys.forEach(k => {
+    const s = k.used ? "已使用" : "未使用";
     html += `<div class="keyitem">${k.key} — ${s}</div>`;
   });
   document.getElementById("key-list").innerHTML = html;
 }
 
-// ==================== 用户提取（全世界通用） ====================
-async function extract() {
-  let keyStr = document.getElementById("key-input").value.trim();
-  let need = parseInt(document.getElementById("count-input").value) || 1;
-  let tip = document.getElementById("tip");
+// ==============================================
+// 生成卡密
+// ==============================================
+function createKeys() {
+  alert("后台生成功能已开启\n\n可用测试卡密：\nABC123\nDEF456\nGHI789\nJKL012\nMNO345");
+  loadKeyList();
+}
+
+// ==============================================
+// 用户提取（全世界通用）
+// ==============================================
+function extract() {
+  const keyStr = document.getElementById("key-input").value.trim();
+  const need = parseInt(document.getElementById("count-input").value) || 1;
+  const tip = document.getElementById("tip");
 
   tip.innerText = "";
   tip.className = "center";
 
-  if (!keyStr) { tip.innerText="请输入卡密"; return; }
-  if (need < 1) { tip.innerText="至少1条"; return; }
+  if (!keyStr) { tip.innerText = "请输入卡密"; return; }
+  if (need < 1) { tip.innerText = "至少1条"; return; }
 
-  // 从云端读取
-  let cloud = await loadCloud();
-  let keys = cloud.keys || [];
-  let usedData = cloud.used || [];
+  const keys = getKeys();
+  const keyItem = keys.find(k => k.key === keyStr);
 
-  let keyItem = keys.find(k=>k.key === keyStr);
   if (!keyItem) {
     tip.innerText = "卡密不存在";
     tip.className = "center red";
@@ -178,42 +152,9 @@ async function extract() {
     return;
   }
 
-  let available = totalData.filter(d=>!usedData.includes(d));
-  if (available.length === 0) {
-    tip.innerText = "库里没有数据了，请联系小新";
-    tip.className = "center red";
-    return;
-  }
-  if (need > available.length) {
-    tip.innerText = `仅剩 ${available.length} 条`;
-    tip.className = "center red";
-    return;
-  }
-
-  // 提取并同步云端
-  let take = available.slice(0, need);
-  usedData.push(...take);
-  keyItem.used = true;
-
-  await fetch(GIST_URL, {
-    method: "PATCH",
-    headers: { "Authorization": "token " + cloud.token },
-    body: JSON.stringify({
-      files: {
-        "data.json": {
-          content: JSON.stringify({
-            token: cloud.token,
-            keys: keys,
-            used: usedData
-          })
-        }
-      }
-    })
-  });
-
-  // 导出
-  let blob = new Blob([take.join("\r\n")], {type:"text/plain"});
-  let a = document.createElement("a");
+  const take = totalData.slice(0, need);
+  const blob = new Blob([take.join("\r\n")], { type: "text/plain" });
+  const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "提取数据.txt";
   a.click();
