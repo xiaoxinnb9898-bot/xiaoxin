@@ -2,46 +2,141 @@
 <meta charset="UTF-8">
 <title>数据提取系统</title>
 <style>
-body{max-width:500px;margin:30px auto;padding:20px;font-family:微软雅黑;background:#f2f5f9}
-.card{background:#fff;padding:25px;border-radius:16px;box-shadow:0 2px 10px #00000010}
-h2{text-align:center;color:#222}
-input{width:100%;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;box-sizing:border-box}
-button{width:100%;padding:12px;background:#2962ff;color:white;border:0;border-radius:8px;font-size:16px;margin-top:5px}
-.msg{color:red;text-align:center;margin:8px 0}
+*{box-sizing:border-box}
+body{font-family:微软雅黑;background:#f4f6f8;margin:0;padding:20px}
+.box{max-width:500px;margin:30px auto;background:#fff;padding:25px;border-radius:16px;box-shadow:0 2px 10px #00000010}
+h2{text-align:center;margin-top:0}
+input,button{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #ddd}
+button{background:#007bff;color:white;border:none;cursor:pointer}
+.gray{background:#6c757d}
+.red{color:red}
+.green{color:green}
+.center{text-align:center}
+.hide{display:none}
+.keylist{margin-top:15px;max-height:300px;overflow-y:auto}
+.keyitem{padding:8px 10px;border-bottom:1px solid #eee}
 </style>
 
-<div class="card">
+<div class="box" id="page_user">
   <h2>🔐 数据提取</h2>
-  <input id="key" placeholder="请输入卡密">
-  <input id="count" type="number" value="10" min="1">
-  <div class="msg" id="msg"></div>
-  <button onclick="getData()">立即提取数据</button>
+  <input id="u_key" placeholder="请输入卡密">
+  <input id="u_cnt" type="number" value="10" min="1" placeholder="你需要多少条数据">
+  <div id="u_msg" class="center red"></div>
+  <button onclick="userExtract()">提取并导出TXT</button>
+  <button class="gray" onclick="goAdmin()">管理后台</button>
+</div>
+
+<div class="box hide" id="page_admin_login">
+  <h2>⚙️ 管理员登录</h2>
+  <input id="a_pwd" type="password" placeholder="默认密码：admin123">
+  <div id="a_msg" class="center red"></div>
+  <button onclick="adminLogin()">登录</button>
+  <button class="gray" onclick="goUser()">返回用户页</button>
+</div>
+
+<div class="box hide" id="page_admin_main">
+  <h2>后台管理</h2>
+  <input id="a_num" type="number" value="10" min="1">
+  <button onclick="adminCreate()">生成卡密</button>
+  <button onclick="adminLoad()">刷新卡密列表</button>
+  <button class="gray" onclick="goUser()">返回用户页</button>
+  <div class="center green" id="a_info"></div>
+  <div class="keylist" id="a_list"></div>
 </div>
 
 <script>
-const API = "https://your-api-url.com"; // 我会帮你填
+// ==================== 数据配置 ====================
+const ADMIN_PWD = "admin123";
+let allData = [];
+let usedData = [];
+let keys = [];
 
-async function getData() {
-  const key = document.getElementById("key").value;
-  const count = parseInt(document.getElementById("count").value);
-  
-  const res = await fetch(API + "/extract", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ key, count })
+// 模拟你的数据（可替换成Excel加载逻辑）
+for(let i=1;i<=500;i++) allData.push("数据_"+i);
+
+// ==================== 页面切换 ====================
+function goAdmin(){
+  document.getElementById("page_user").classList.add("hide");
+  document.getElementById("page_admin_login").classList.remove("hide");
+}
+function goUser(){
+  document.querySelectorAll(".box").forEach(e=>e.classList.add("hide"));
+  document.getElementById("page_user").classList.remove("hide");
+}
+
+// ==================== 管理员登录 ====================
+function adminLogin(){
+  const p = document.getElementById("a_pwd").value;
+  if(p === ADMIN_PWD){
+    document.getElementById("page_admin_login").classList.add("hide");
+    document.getElementById("page_admin_main").classList.remove("hide");
+    adminLoad();
+  }else{
+    document.getElementById("a_msg").innerText = "密码错误";
+  }
+}
+
+// ==================== 生成卡密 ====================
+function adminCreate(){
+  const num = parseInt(document.getElementById("a_num").value)||1;
+  let newKeys = [];
+  for(let i=0;i<num;i++){
+    const k = "K"+Math.random().toString(36).slice(2,10).toUpperCase();
+    keys.push({key:k, used:false});
+    newKeys.push(k);
+  }
+  alert("生成成功：\n"+newKeys.join("\n"));
+  adminLoad();
+}
+
+// ==================== 加载卡密列表 ====================
+function adminLoad(){
+  const free = keys.filter(k=>!k.used).length;
+  const used = keys.filter(k=>k.used).length;
+  document.getElementById("a_info").innerText = `未使用：${free}  已使用：${used}`;
+  let html = "";
+  keys.forEach(k=>{
+    html+=`<div class="keyitem">${k.key} —— ${k.used?"已使用":"未使用"}</div>`;
   });
-  
-  const data = await res.json();
-  if (!data.success) {
-    document.getElementById("msg").innerText = data.msg;
+  document.getElementById("a_list").innerHTML = html;
+}
+
+// ==================== 用户提取数据 ====================
+function userExtract(){
+  const keyStr = document.getElementById("u_key").value.trim();
+  const cnt = parseInt(document.getElementById("u_cnt").value)||1;
+  const msg = document.getElementById("u_msg");
+
+  if(!keyStr){ msg.innerText="请输入卡密"; return; }
+  if(cnt<1){ msg.innerText="至少1条"; return; }
+
+  const key = keys.find(k=>k.key === keyStr);
+  if(!key){ msg.innerText="卡密不存在"; return; }
+  if(key.used){ msg.innerText="卡密已使用"; return; }
+
+  const available = allData.filter(d=>!usedData.includes(d));
+  if(available.length === 0){
+    msg.innerText = "库里没有数据了，请联系小新";
     return;
   }
 
-  const blob = new Blob([data.content], { type: "text/plain" });
+  const take = available.slice(0, cnt);
+  if(take.length === 0){
+    msg.innerText = "库里没有数据了，请联系小新";
+    return;
+  }
+
+  usedData.push(...take);
+  key.used = true;
+
+  const txt = take.join("\r\n");
+  const blob = new Blob([txt], {type:"text/plain"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "提取数据.txt";
   a.click();
-  document.getElementById("msg").innerText = "提取成功";
+
+  msg.innerText = `提取成功 ${take.length} 条`;
+  adminLoad();
 }
 </script>
