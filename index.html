@@ -8,215 +8,76 @@ body{font-family:微软雅黑;background:#f4f6f8;margin:0;padding:20px}
 h2{text-align:center;margin-top:0}
 input,button{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #ddd}
 button{background:#007bff;color:white;border:none;cursor:pointer}
-.gray{background:#6c757d}
 .red{color:red}
 .green{color:green}
 .center{text-align:center}
-.hide{display:none}
-.keylist{margin-top:15px;max-height:300px;overflow-y:auto}
-.keyitem{padding:8px 10px;border-bottom:1px solid #eee}
 </style>
 
-<div class="box" id="page_user">
+<div class="box">
   <h2>🔐 数据提取</h2>
-  <input id="u_key" placeholder="请输入卡密">
-  <input id="u_cnt" type="number" value="10" min="1" placeholder="你需要多少条数据">
-  <div id="u_msg" class="center red"></div>
-  <button onclick="userExtract()">提取并导出TXT</button>
-  <button class="gray" onclick="goAdmin()">管理后台</button>
-</div>
-
-<div class="box hide" id="page_admin_login">
-  <h2>⚙️ 管理员登录</h2>
-  <input id="a_pwd" type="password" placeholder="默认密码：admin123">
-  <div id="a_msg" class="center red"></div>
-  <button onclick="adminLogin()">登录</button>
-  <button class="gray" onclick="goUser()">返回用户页</button>
-</div>
-
-<div class="box hide" id="page_admin_main">
-  <h2>后台管理</h2>
-  <input id="a_num" type="number" value="10" min="1">
-  <button onclick="adminCreate()">生成卡密</button>
-  <button onclick="adminLoad()">刷新卡密列表</button>
-  <button class="gray" onclick="goUser()">返回用户页</button>
-  <div class="center green" id="a_info"></div>
-  <div class="keylist" id="a_list"></div>
+  <input id="key" placeholder="请输入卡密">
+  <input id="count" type="number" value="10" min="1" placeholder="你需要多少条数据">
+  <div id="msg" class="center"></div>
+  <button onclick="extract()">提取并导出TXT</button>
 </div>
 
 <script>
-// ==================== 核心配置 ====================
-const ADMIN_PWD = "admin123";
-let allData = [];
-let usedData = [];
-let keys = [];
+// 共用本地存储，和后台互通
+function getKeys() { return JSON.parse(localStorage.getItem("sys_keys")||"[]") }
+function getUsedData() { return JSON.parse(localStorage.getItem("sys_used")||"[]") }
+function getAllData() {
+  let d = localStorage.getItem("sys_all");
+  if(d) return JSON.parse(d);
+  let arr = [];
+  for(let i=1;i<=500;i++) arr.push("数据_"+i);
+  localStorage.setItem("sys_all",JSON.stringify(arr));
+  return arr;
+}
+function saveKeys(k) { localStorage.setItem("sys_keys",JSON.stringify(k)) }
+function saveUsed(d) { localStorage.setItem("sys_used",JSON.stringify(d)) }
 
-// 🔴 核心修复：本地存储+初始化逻辑，彻底解决卡密丢失
-function initData() {
-  // 1. 加载卡密
-  const savedKeys = localStorage.getItem("sys_keys");
-  if (savedKeys) {
-    keys = JSON.parse(savedKeys);
+async function extract() {
+  const key = document.getElementById("key").value.trim();
+  const num = parseInt(document.getElementById("count").value)||1;
+  const msg = document.getElementById("msg");
+
+  if(!key){ msg.className="center red"; msg.innerText="请输入卡密"; return; }
+  if(num<1){ msg.className="center red"; msg.innerText="至少1条"; return; }
+
+  const keys = getKeys();
+  const card = keys.find(x=>x.key===key);
+
+  if(!card){ msg.className="center red"; msg.innerText="卡密不存在"; return; }
+  if(card.used){ msg.className="center red"; msg.innerText="卡密已使用"; return; }
+
+  const all = getAllData();
+  const used = getUsedData();
+  const available = all.filter(x=>!used.includes(x));
+
+  if(available.length===0){
+    msg.className="center red";
+    msg.innerText="库里没有数据了，请联系小新";
+    return;
   }
-  // 2. 加载已用数据
-  const savedUsed = localStorage.getItem("sys_used");
-  if (savedUsed) {
-    usedData = JSON.parse(savedUsed);
-  }
-  // 3. 加载原始数据（首次运行初始化，后续从存储读取）
-  const savedAll = localStorage.getItem("sys_all");
-  if (savedAll) {
-    allData = JSON.parse(savedAll);
-  } else {
-    // 模拟数据，替换成你的Excel数据
-    for(let i=1;i<=500;i++) allData.push(`数据_${i}`);
-    localStorage.setItem("sys_all", JSON.stringify(allData));
-  }
-  // 4. 初始化后刷新后台列表
-  adminLoad();
-}
-
-// 🔴 核心修复：统一存储方法，确保数据实时写入
-function saveAll() {
-  localStorage.setItem("sys_keys", JSON.stringify(keys));
-  localStorage.setItem("sys_used", JSON.stringify(usedData));
-}
-
-// 页面加载自动初始化
-initData();
-
-// ==================== 页面切换 ====================
-function goAdmin(){
-  document.getElementById("page_user").classList.add("hide");
-  document.getElementById("page_admin_login").classList.remove("hide");
-}
-function goUser(){
-  document.querySelectorAll(".box").forEach(e=>e.classList.add("hide"));
-  document.getElementById("page_user").classList.remove("hide");
-  // 刷新用户页提示
-  document.getElementById("u_msg").textContent = "";
-}
-
-// ==================== 管理员登录 ====================
-function adminLogin(){
-  const p = document.getElementById("a_pwd").value.trim();
-  if(p === ADMIN_PWD){
-    document.getElementById("page_admin_login").classList.add("hide");
-    document.getElementById("page_admin_main").classList.remove("hide");
-    adminLoad();
-  }else{
-    document.getElementById("a_msg").innerText = "密码错误";
-  }
-}
-
-// ==================== 生成卡密（核心修复：卡密格式+存储） ====================
-function adminCreate(){
-  const num = parseInt(document.getElementById("a_num").value) || 1;
-  if(num < 1 || num > 100) {
-    alert("请输入1-100之间的数量");
+  if(num>available.length){
+    msg.className="center red";
+    msg.innerText="剩余不足，请输入更少条数";
     return;
   }
 
-  let newKeyList = [];
-  for(let i=0;i<num;i++){
-    // 🔴 修复卡密生成逻辑：固定8位，无特殊字符，避免输入错误
-    const randomStr = Math.random().toString(36).slice(2, 10).toUpperCase();
-    const keyObj = {
-      key: randomStr,
-      used: false,
-      createTime: new Date().toLocaleString()
-    };
-    keys.push(keyObj);
-    newKeyList.push(randomStr);
-  }
+  const take = available.slice(0,num);
+  used.push(...take);
+  card.used=true;
+  saveUsed(used);
+  saveKeys(keys);
 
-  // 🔴 生成后立即存储，确保不丢失
-  saveAll();
-  alert(`✅ 生成成功！\n${newKeyList.join("\n")}`);
-  adminLoad();
-}
-
-// ==================== 加载卡密列表（核心修复：状态实时同步） ====================
-function adminLoad(){
-  const freeCount = keys.filter(k => !k.used).length;
-  const usedCount = keys.filter(k => k.used).length;
-  const remainData = allData.length - usedData.length;
-
-  document.getElementById("a_info").innerText = 
-    `未使用卡密：${freeCount} | 已使用卡密：${usedCount} | 剩余数据：${remainData}条`;
-
-  let html = "";
-  keys.forEach(k => {
-    const status = k.used ? "✅ 已使用" : "🟢 未使用";
-    html += `<div class="keyitem">${k.key} —— ${status}</div>`;
-  });
-  document.getElementById("a_list").innerHTML = html;
-}
-
-// ==================== 用户提取数据（核心修复：卡密校验逻辑） ====================
-function userExtract(){
-  const inputKey = document.getElementById("u_key").value.trim();
-  const needCount = parseInt(document.getElementById("u_cnt").value) || 1;
-  const msgEl = document.getElementById("u_msg");
-  msgEl.textContent = "";
-
-  // 1. 校验输入
-  if(!inputKey) {
-    msgEl.textContent = "请输入卡密";
-    return;
-  }
-  if(needCount < 1) {
-    msgEl.textContent = "请输入至少1条数据";
-    return;
-  }
-
-  // 🔴 核心修复：精准匹配卡密，避免大小写/空格问题
-  const targetKey = keys.find(k => k.key === inputKey);
-  if(!targetKey) {
-    msgEl.textContent = "卡密不存在";
-    // 🔴 调试用：打印当前卡密列表，方便排查
-    console.log("当前卡密库：", keys.map(k=>k.key));
-    return;
-  }
-  if(targetKey.used) {
-    msgEl.textContent = "卡密已使用，无法重复提取";
-    return;
-  }
-
-  // 2. 校验数据库存
-  const availableData = allData.filter(d => !usedData.includes(d));
-  if(availableData.length === 0) {
-    msgEl.textContent = "库里没有数据了，请联系小新";
-    return;
-  }
-  if(needCount > availableData.length) {
-    msgEl.textContent = `当前仅剩余${availableData.length}条数据，请输入不超过该数值`;
-    return;
-  }
-
-  // 3. 提取数据
-  const extractData = availableData.slice(0, needCount);
-  usedData.push(...extractData);
-  targetKey.used = true;
-
-  // 4. 存储状态
-  saveAll();
-
-  // 5. 导出TXT
-  const txtContent = extractData.join("\r\n");
-  const blob = new Blob([txtContent], {type: "text/plain;charset=utf-8"});
-  const url = URL.createObjectURL(blob);
+  const blob = new Blob([take.join("\r\n")],{type:"text/plain"});
   const a = document.createElement("a");
-  a.href = url;
-  a.download = `提取数据_${needCount}条.txt`;
+  a.href=URL.createObjectURL(blob);
+  a.download="提取数据.txt";
   a.click();
-  URL.revokeObjectURL(url);
 
-  // 6. 提示成功
-  msgEl.textContent = `✅ 提取成功！共提取${needCount}条数据`;
-  msgEl.className = "center green";
-
-  // 7. 刷新后台列表
-  adminLoad();
+  msg.className="center green";
+  msg.innerText="✅ 提取成功！";
 }
 </script>
