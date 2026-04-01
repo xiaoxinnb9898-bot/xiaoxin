@@ -26,12 +26,12 @@ button{background:#007bff;color:white;border:none;cursor:pointer}
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script>
+// 路径完全匹配你的仓库
 const DATA_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/数据.xlsx";
 let allData = [];
 let usedData = [];
 let keys = [];
 
-// 从本地存储加载状态
 function loadFromStorage() {
   const savedKeys = localStorage.getItem("sys_keys");
   const savedUsed = localStorage.getItem("sys_used");
@@ -39,13 +39,11 @@ function loadFromStorage() {
   if(savedUsed) usedData = JSON.parse(savedUsed);
 }
 
-// 保存状态到本地存储
 function saveToStorage() {
   localStorage.setItem("sys_keys", JSON.stringify(keys));
   localStorage.setItem("sys_used", JSON.stringify(usedData));
 }
 
-// 加载Excel数据
 async function loadExcel() {
   loadFromStorage();
   try {
@@ -55,7 +53,6 @@ async function loadExcel() {
     const ws = wb.Sheets[wb.SheetNames[0]];
     const raw = XLSX.utils.sheet_to_json(ws, {header:1, blankrows:true});
     
-    // 提取A列有效数据，去重
     allData = raw
       .map(r => r[0] === null || r[0] === undefined ? "" : String(r[0]).trim())
       .filter(c => c !== "")
@@ -69,7 +66,6 @@ async function loadExcel() {
   }
 }
 
-// 页面加载时自动执行
 loadExcel();
 
 async function extract() {
