@@ -39,7 +39,7 @@ button{padding:10px 14px;background:#007bff;color:white;border:none;border-radiu
 </div>
 
 <script>
-// 你的文件地址（已修正为纯英文，避免中文编码问题）
+// 🔥 路径 100% 匹配：仓库名 + 纯英文文件名，彻底解决 404
 const DATA_FILE_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.xlsx";
 
 // 卡密配置
@@ -54,7 +54,6 @@ const GROUP_ROW_COUNT = 11;
 let allAData = [];
 let currentCard = null;
 
-// 页面加载自动读取数据（核心修复：彻底避免类型错误）
 window.onload = async function () {
   try {
     // 强制跳过缓存，避免旧文件影响
@@ -63,109 +62,65 @@ window.onload = async function () {
       mode: "cors"
     });
     
-    if (!res.ok) {
-      throw new Error(`文件加载失败: ${res.status} ${res.statusText}`);
-    }
-    
+    if (!res.ok) throw new Error(`文件加载失败: ${res.status}`);
     const buf = await res.arrayBuffer();
     const wb = XLSX.read(buf);
     const ws = wb.Sheets[wb.SheetNames[0]];
     const raw = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: true });
     
-    // 🔴 核心修复：强制转字符串 + 类型判断，彻底解决 trim 报错
+    // 彻底解决 trim 报错：强制转字符串 + 类型判断
     allAData = raw
       .map(row => {
-        // 把A列的单元格值强制转为字符串，空值兜底为""
-        const cellValue = row[0];
-        return cellValue === null || cellValue === undefined ? "" : String(cellValue);
+        const cell = row[0];
+        return cell === null || cell === undefined ? "" : String(cell);
       })
-      .filter(c => {
-        // 只保留非空字符串，彻底避免非字符串调用trim
-        return typeof c === "string" && c.trim() !== "";
-      });
+      .filter(c => typeof c === "string" && c.trim() !== "");
 
-    // 数据加载成功，显示卡密登录
     document.getElementById("loadingSection").classList.add("hide");
     document.getElementById("keySection").classList.remove("hide");
   } catch (e) {
-    console.error("加载错误详情：", e);
-    document.getElementById("loadingSection").innerHTML = 
-      `<p style="color:red">数据加载失败<br>错误信息：${e.message}<br>请检查文件是否存在</p>`;
+    console.error("加载错误:", e);
+    document.getElementById("loadingSection").innerHTML = `<p style="color:red">数据加载失败: ${e.message}</p>`;
   }
 };
 
-// 卡密验证逻辑
 function verifyCard() {
-  const inputKey = document.getElementById("cardKey").value.trim();
-  const errorEl = document.getElementById("keyError");
-  errorEl.textContent = "";
+  const k = document.getElementById("cardKey").value.trim();
+  const err = document.getElementById("keyError");
+  err.textContent = "";
+  const card = CARD_LIST.find(c => c.key === k);
+  
+  if (!card) { err.textContent = "卡密不存在"; return; }
+  if (card.used) { err.textContent = "该卡密已使用"; return; }
 
-  // 查找匹配的卡密
-  const matchedCard = CARD_LIST.find(card => card.key === inputKey);
-
-  if (!matchedCard) {
-    errorEl.textContent = "卡密不存在，请检查输入";
-    return;
-  }
-  if (matchedCard.used) {
-    errorEl.textContent = "该卡密已使用，无法重复验证";
-    return;
-  }
-
-  currentCard = matchedCard;
-  // 计算最大可提取组数（数据总量 ÷ 11，取整）
-  const maxGroups = Math.min(matchedCard.maxGroups, Math.floor(allAData.length / GROUP_ROW_COUNT));
-  document.getElementById("cardTip").textContent = 
-    `卡密验证通过！您最多可提取 ${maxGroups} 组数据（每组11行）`;
-  document.getElementById("groupCount").max = maxGroups;
-
-  // 切换到导出界面
+  currentCard = card;
+  const maxG = Math.min(card.maxGroups, Math.floor(allAData.length / GROUP_ROW_COUNT));
+  document.getElementById("cardTip").textContent = `最多可提取 ${maxG} 组`;
+  document.getElementById("groupCount").max = maxG;
   document.getElementById("keySection").classList.add("hide");
   document.getElementById("exportSection").classList.remove("hide");
 }
 
-// 按组导出A列数据（保留分组空行）
 function exportData() {
-  if (!currentCard) {
-    alert("请先通过卡密验证");
-    return;
-  }
-
-  const inputGroups = parseInt(document.getElementById("groupCount").value);
-  const maxGroups = Math.min(
-    currentCard.maxGroups,
-    Math.floor(allAData.length / GROUP_ROW_COUNT)
-  );
-
-  // 校验输入合法性
-  if (isNaN(inputGroups) || inputGroups < 1 || inputGroups > maxGroups) {
-    alert(`请输入 1~${maxGroups} 之间的有效组数`);
-    return;
-  }
-
-  // 截取对应行数的数据
-  const exportData = allAData.slice(0, inputGroups * GROUP_ROW_COUNT);
-
-  // 还原分组格式：每组11行后加1个空行
-  const finalExportData = [];
-  for (let i = 0; i < exportData.length; i++) {
-    finalExportData.push([exportData[i]]);
-    if ((i + 1) % GROUP_ROW_COUNT === 0 && i !== exportData.length - 1) {
-      finalExportData.push([""]);
-    }
-  }
-
-  // 生成Excel并下载
-  const worksheet = XLSX.utils.aoa_to_sheet(finalExportData);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "A列分组数据");
-  XLSX.writeFile(workbook, `A列数据_${inputGroups}组.xlsx`);
-
-  // 标记卡密为已使用
-  currentCard.used = true;
-  alert(`导出成功！已生成 ${inputGroups} 组数据文件，卡密已失效`);
+  if (!currentCard) return;
+  const need = parseInt(document.getElementById("groupCount").value);
+  const max = Math.min(currentCard.maxGroups, Math.floor(allAData.length / GROUP_ROW_COUNT));
   
-  // 禁用输入和按钮，防止重复操作
+  if (need < 1 || need > max) { alert(`请输入1~${max}之间的有效组数`); return; }
+
+  const data = allAData.slice(0, need * 11);
+  const out = [];
+  for (let i = 0; i < data.length; i++) {
+    out.push([data[i]]);
+    if ((i + 1) % 11 === 0 && i !== data.length - 1) out.push([""]);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(out);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "A列分组数据");
+  XLSX.writeFile(wb, `A列数据_${need}组.xlsx`);
+  currentCard.used = true;
+  alert("导出成功！卡密已失效");
   document.getElementById("groupCount").disabled = true;
   document.querySelector("#exportSection button").disabled = true;
 }
