@@ -3,7 +3,7 @@
 <title>数据提取系统</title>
 <style>
 body{max-width:600px;margin:50px auto;padding:30px;font-family:微软雅黑;background:#f4f6f8}
-.card{background:#fff;padding:30px;border-radius:16px;box-shadow:0 2px 15px rgba(0,0,0,0.08)}
+.card{background:#fff;padding:30px;border-radius:16px;box-shadow:0 2px 15px rgba(0,0,0,0.08);margin-bottom:20px}
 h2{color:#333;margin-top:0;text-align:center}
 .input-group{margin:12px 0}
 input{padding:10px 14px;border-radius:6px;border:1px solid #ddd;font-size:15px;width:100%;box-sizing:border-box}
@@ -12,116 +12,115 @@ button{padding:10px 14px;background:#007bff;color:white;border:none;border-radiu
 .info{color:#007bff;margin:8px 0;font-size:14px;text-align:center}
 .hide{display:none}
 .loading{text-align:center;padding:20px;color:#666}
+.admin{background:#fffce6;border:1px solid #ffcc00}
+textarea{width:100%;height:150px;margin-top:10px;padding:10px;box-sizing:border-box}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
 <div class="card">
     <h2>🔐 数据提取系统</h2>
-    <div id="loadingSection" class="loading"><p>正在加载数据，请稍候...</p></div>
+    <div id="loadingSection" class="loading"><p>正在加载数据...</p></div>
     <div id="keySection" class="hide">
-        <div class="input-group">
-            <label>请输入授权卡密</label>
-            <input type="text" id="cardKey" placeholder="输入卡密">
-            <div class="error" id="keyError"></div>
-        </div>
-        <button onclick="verifyCard()">验证并进入</button>
+        <div class="input-group"><label>卡密</label><input type="text" id="cardKey" placeholder="输入卡密"></div>
+        <div class="error" id="keyError"></div>
+        <button onclick="verifyCard()">验证</button>
     </div>
     <div id="exportSection" class="hide">
         <div class="info" id="cardTip"></div>
-        <div class="input-group">
-            <label>请输入需要提取的组数（1组=11行）</label>
-            <input type="number" id="groupCount" min="1" value="1">
-        </div>
-        <button onclick="exportData()">立即导出A列数据</button>
-        <div class="info" style="margin-top:15px">导出后卡密自动失效</div>
+        <div class="input-group"><label>提取组数（1组=11行）</label><input type="number" id="groupCount" min="1" value="1"></div>
+        <button onclick="exportData()">导出TXT</button>
     </div>
 </div>
 
+<div class="card admin hide" id="adminPanel">
+    <h2>⚙️ 卡密管理</h2>
+    <div class="input-group">
+        <label>生成数量</label><input type="number" id="genCount" value="10" min="1">
+    </div>
+    <div class="input-group">
+        <label>卡密额度（组）</label><input type="number" id="genQuota" value="10" min="1">
+    </div>
+    <button onclick="generateKeys()">生成卡密</button>
+    <textarea id="keyList"></textarea>
+    <button onclick="copyKeys()">复制全部卡密</button>
+</div>
+
 <script>
-// 🔥 路径 100% 匹配：仓库名 + 纯英文文件名，彻底解决 404
+// ==================== 配置 ====================
 const DATA_FILE_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.xlsx";
-
-// 卡密配置
-const CARD_LIST = [
-  { key: "TEST10", maxGroups: 10, used: false },
-  { key: "TEST500", maxGroups: 500, used: false },
-  { key: "TEST1000", maxGroups: 1000, used: false },
-  { key: "TEST2000", maxGroups: 2000, used: false },
-];
-
 const GROUP_ROW_COUNT = 11;
 let allAData = [];
-let currentCard = null;
 
+// 卡密库（可自动生成）
+let CARD_LIST = [
+  { key: "TEST10", maxGroups: 10, used: false },
+  { key: "TEST500", maxGroups: 500, used: false },
+];
+
+// ==================== 加载数据 ====================
 window.onload = async function () {
   try {
-    // 强制跳过缓存，避免旧文件影响
-    const res = await fetch(DATA_FILE_URL + "?t=" + new Date().getTime(), {
-      cache: "no-store",
-      mode: "cors"
-    });
-    
-    if (!res.ok) throw new Error(`文件加载失败: ${res.status}`);
+    const res = await fetch(DATA_FILE_URL+"?t="+new Date().getTime(), {cache:"no-store"});
     const buf = await res.arrayBuffer();
     const wb = XLSX.read(buf);
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: true });
-    
-    // 彻底解决 trim 报错：强制转字符串 + 类型判断
-    allAData = raw
-      .map(row => {
-        const cell = row[0];
-        return cell === null || cell === undefined ? "" : String(cell);
-      })
-      .filter(c => typeof c === "string" && c.trim() !== "");
-
+    const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
+    allAData = raw.map(r=>String(r[0]??"")).filter(c=>c.trim());
     document.getElementById("loadingSection").classList.add("hide");
     document.getElementById("keySection").classList.remove("hide");
   } catch (e) {
-    console.error("加载错误:", e);
-    document.getElementById("loadingSection").innerHTML = `<p style="color:red">数据加载失败: ${e.message}</p>`;
+    document.getElementById("loadingSection").innerHTML="<p style='color:red'>加载失败</p>";
   }
 };
 
+// ==================== 卡密验证 ====================
 function verifyCard() {
   const k = document.getElementById("cardKey").value.trim();
-  const err = document.getElementById("keyError");
-  err.textContent = "";
-  const card = CARD_LIST.find(c => c.key === k);
-  
-  if (!card) { err.textContent = "卡密不存在"; return; }
-  if (card.used) { err.textContent = "该卡密已使用"; return; }
-
-  currentCard = card;
-  const maxG = Math.min(card.maxGroups, Math.floor(allAData.length / GROUP_ROW_COUNT));
-  document.getElementById("cardTip").textContent = `最多可提取 ${maxG} 组`;
-  document.getElementById("groupCount").max = maxG;
+  const card = CARD_LIST.find(c=>c.key===k);
+  if(!card){document.getElementById("keyError").textContent="卡密不存在";return}
+  if(card.used){document.getElementById("keyError").textContent="已使用";return}
+  window.currentCard = card;
   document.getElementById("keySection").classList.add("hide");
   document.getElementById("exportSection").classList.remove("hide");
+  document.getElementById("cardTip").textContent="可提取："+Math.min(card.maxGroups,Math.floor(allAData.length/11))+"组";
 }
 
+// ==================== 导出 TXT ====================
 function exportData() {
-  if (!currentCard) return;
-  const need = parseInt(document.getElementById("groupCount").value);
-  const max = Math.min(currentCard.maxGroups, Math.floor(allAData.length / GROUP_ROW_COUNT));
-  
-  if (need < 1 || need > max) { alert(`请输入1~${max}之间的有效组数`); return; }
-
-  const data = allAData.slice(0, need * 11);
-  const out = [];
-  for (let i = 0; i < data.length; i++) {
-    out.push([data[i]]);
-    if ((i + 1) % 11 === 0 && i !== data.length - 1) out.push([""]);
+  const need = +document.getElementById("groupCount").value;
+  const max = Math.min(currentCard.maxGroups, Math.floor(allAData.length/11));
+  if(need<1||need>max){alert("1~"+max);return}
+  const d = allAData.slice(0,need*11);
+  let txt="";
+  for(let i=0;i<d.length;i++){
+    txt+=d[i]+"\r\n";
+    if((i+1)%11===0&&i!==d.length-1)txt+="\r\n";
   }
+  const blob = new Blob([txt],{type:"text/plain"});
+  const a = document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="数据_"+need+"组.txt";
+  a.click();
+  currentCard.used=true;
+  alert("导出成功");
+}
 
-  const ws = XLSX.utils.aoa_to_sheet(out);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "A列分组数据");
-  XLSX.writeFile(wb, `A列数据_${need}组.xlsx`);
-  currentCard.used = true;
-  alert("导出成功！卡密已失效");
-  document.getElementById("groupCount").disabled = true;
-  document.querySelector("#exportSection button").disabled = true;
+// ==================== 卡密生成器（你要的新功能）====================
+function generateKeys() {
+  const count = +document.getElementById("genCount").value;
+  const quota = +document.getElementById("genQuota").value;
+  let list="";
+  for(let i=0;i<count;i++){
+    const key = "KEY"+Math.random().toString(36).substr(2,8).toUpperCase();
+    CARD_LIST.push({key,maxGroups:quota,used:false});
+    list+=key+"\r\n";
+  }
+  document.getElementById("keyList").value=list;
+}
+
+function copyKeys() {
+  document.getElementById("keyList").select();
+  document.execCommand("copy");
+  alert("已复制");
 }
 </script>
