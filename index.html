@@ -45,14 +45,43 @@ button{background:#007bff;color:white;border:none;cursor:pointer}
 </div>
 
 <script>
-// ==================== 数据配置 ====================
+// ==================== 核心配置 ====================
 const ADMIN_PWD = "admin123";
 let allData = [];
 let usedData = [];
 let keys = [];
 
-// 模拟你的数据（可替换成Excel加载逻辑）
-for(let i=1;i<=500;i++) allData.push("数据_"+i);
+// 🔴 核心修复：从本地存储加载数据，永久保存
+function loadFromStorage() {
+  // 加载卡密
+  const savedKeys = localStorage.getItem("data_extract_keys");
+  if (savedKeys) {
+    keys = JSON.parse(savedKeys);
+  }
+  // 加载已用数据
+  const savedUsed = localStorage.getItem("data_extract_used");
+  if (savedUsed) {
+    usedData = JSON.parse(savedUsed);
+  }
+  // 加载原始数据（如果是Excel，这里会替换成加载逻辑）
+  const savedAll = localStorage.getItem("data_extract_all");
+  if (savedAll) {
+    allData = JSON.parse(savedAll);
+  } else {
+    // 模拟数据，替换成你的Excel数据
+    for(let i=1;i<=500;i++) allData.push("数据_"+i);
+    localStorage.setItem("data_extract_all", JSON.stringify(allData));
+  }
+}
+
+// 🔴 核心修复：保存到本地存储，刷新不丢失
+function saveToStorage() {
+  localStorage.setItem("data_extract_keys", JSON.stringify(keys));
+  localStorage.setItem("data_extract_used", JSON.stringify(usedData));
+}
+
+// 页面加载时自动恢复数据
+loadFromStorage();
 
 // ==================== 页面切换 ====================
 function goAdmin(){
@@ -85,6 +114,8 @@ function adminCreate(){
     keys.push({key:k, used:false});
     newKeys.push(k);
   }
+  // 🔴 生成后立即保存
+  saveToStorage();
   alert("生成成功：\n"+newKeys.join("\n"));
   adminLoad();
 }
@@ -93,7 +124,7 @@ function adminCreate(){
 function adminLoad(){
   const free = keys.filter(k=>!k.used).length;
   const used = keys.filter(k=>k.used).length;
-  document.getElementById("a_info").innerText = `未使用：${free}  已使用：${used}`;
+  document.getElementById("a_info").innerText = `未使用：${free}  已使用：${used}  剩余数据：${allData.length - usedData.length}`;
   let html = "";
   keys.forEach(k=>{
     html+=`<div class="keyitem">${k.key} —— ${k.used?"已使用":"未使用"}</div>`;
@@ -128,6 +159,8 @@ function userExtract(){
 
   usedData.push(...take);
   key.used = true;
+  // 🔴 提取后立即保存
+  saveToStorage();
 
   const txt = take.join("\r\n");
   const blob = new Blob([txt], {type:"text/plain"});
