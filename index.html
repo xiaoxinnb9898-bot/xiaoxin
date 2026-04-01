@@ -39,10 +39,10 @@ button{padding:10px 14px;background:#007bff;color:white;border:none;border-radiu
 </div>
 
 <script>
-// 🔥 已经帮你填好你自己的数据地址！
-const DATA_FILE_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.xlsx";
+// 🔥 已修正为你真实的文件名！直接用，不用改！
+const DATA_FILE_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/测试数据总库.xlsx";
 
-// 卡密
+// 卡密配置
 const CARD_LIST = [
   { key: "TEST10", maxGroups: 10, used: false },
   { key: "TEST500", maxGroups: 500, used: false },
@@ -57,6 +57,7 @@ let currentCard = null;
 window.onload = async function () {
   try {
     const res = await fetch(DATA_FILE_URL);
+    if (!res.ok) throw new Error("文件加载失败");
     const buf = await res.arrayBuffer();
     const wb = XLSX.read(buf);
     const ws = wb.Sheets[wb.SheetNames[0]];
@@ -66,7 +67,8 @@ window.onload = async function () {
     document.getElementById("loadingSection").classList.add("hide");
     document.getElementById("keySection").classList.remove("hide");
   } catch (e) {
-    document.getElementById("loadingSection").innerHTML = '<p style="color:red">数据加载失败</p>';
+    console.error("加载错误详情：", e);
+    document.getElementById("loadingSection").innerHTML = '<p style="color:red">数据加载失败，请检查文件地址</p>';
   }
 };
 
@@ -76,11 +78,11 @@ function verifyCard() {
   err.textContent = "";
   const card = CARD_LIST.find(c => c.key === k);
   if (!card) { err.textContent = "卡密不存在"; return; }
-  if (card.used) { err.textContent = "已使用"; return; }
+  if (card.used) { err.textContent = "该卡密已使用"; return; }
 
   currentCard = card;
   const maxG = Math.min(card.maxGroups, Math.floor(allAData.length / 11));
-  document.getElementById("cardTip").textContent = `最多可提取 ${maxG} 组`;
+  document.getElementById("cardTip").textContent = `卡密验证通过！最多可提取 ${maxG} 组`;
   document.getElementById("groupCount").max = maxG;
   document.getElementById("keySection").classList.add("hide");
   document.getElementById("exportSection").classList.remove("hide");
@@ -90,7 +92,7 @@ function exportData() {
   if (!currentCard) return;
   const need = parseInt(document.getElementById("groupCount").value);
   const max = Math.min(currentCard.maxGroups, Math.floor(allAData.length / 11));
-  if (need < 1 || need > max) { alert(`请输入 1~${max}`); return; }
+  if (need < 1 || need > max) { alert(`请输入 1~${max} 之间的有效组数`); return; }
 
   const data = allAData.slice(0, need * 11);
   const out = [];
@@ -101,8 +103,8 @@ function exportData() {
 
   const ws = XLSX.utils.aoa_to_sheet(out);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "数据");
-  XLSX.writeFile(wb, `数据_${need}组.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, "A列分组数据");
+  XLSX.writeFile(wb, `A列数据_${need}组.xlsx`);
   currentCard.used = true;
   alert("导出成功！卡密已失效");
   document.getElementById("groupCount").disabled = true;
