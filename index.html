@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>数据提取系统</title>
+<style>
+body{max-width:600px;margin:50px auto;padding:30px;font-family:微软雅黑;background:#f4f6f8}
+.card{background:#fff;padding:30px;border-radius:16px;box-shadow:0 2px 15px rgba(0,0,0,0.08)}
+h2{color:#333;margin-top:0;text-align:center}
+.input-group{margin:12px 0}
+input{padding:10px 14px;border-radius:6px;border:1px solid #ddd;font-size:15px;width:100%;box-sizing:border-box}
+button{padding:10px 14px;background:#007bff;color:white;border:none;border-radius:6px;cursor:pointer;font-size:15px;width:100%;margin-top:8px}
+.error{color:#dc3545;margin:8px 0;font-size:14px}
+.info{color:#007bff;margin:8px 0;font-size:14px;text-align:center}
+.hide{display:none}
+.loading{text-align:center;padding:20px;color:#666}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<div class="card">
+    <h2>🔐 数据提取系统</h2>
+    <div id="loadingSection" class="loading"><p>正在加载数据...</p></div>
+    <div id="keySection" class="hide">
+        <div class="input-group">
+            <label>请输入授权卡密</label>
+            <input type="text" id="cardKey" placeholder="输入卡密">
+            <div class="error" id="keyError"></div>
+        </div>
+        <button onclick="verifyCard()">验证并进入</button>
+    </div>
+    <div id="exportSection" class="hide">
+        <div class="info" id="cardTip"></div>
+        <div class="input-group">
+            <label>请输入需要提取的组数（1组=11行）</label>
+            <input type="number" id="groupCount" min="1" value="1">
+        </div>
+        <button onclick="exportData()">立即导出A列数据</button>
+        <div class="info" style="margin-top:15px">导出后卡密自动失效</div>
+    </div>
+</div>
+
+<script>
+// 🔥 已经帮你填好你自己的数据地址！
+const DATA_FILE_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.xlsx";
+
+// 卡密
+const CARD_LIST = [
+  { key: "TEST10", maxGroups: 10, used: false },
+  { key: "TEST500", maxGroups: 500, used: false },
+  { key: "TEST1000", maxGroups: 1000, used: false },
+  { key: "TEST2000", maxGroups: 2000, used: false },
+];
+
+const GROUP_ROW_COUNT = 11;
+let allAData = [];
+let currentCard = null;
+
+window.onload = async function () {
+  try {
+    const res = await fetch(DATA_FILE_URL);
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: true });
+    allAData = raw.map(r => r[0] ?? "").filter(c => c.trim() !== "");
+
+    document.getElementById("loadingSection").classList.add("hide");
+    document.getElementById("keySection").classList.remove("hide");
+  } catch (e) {
+    document.getElementById("loadingSection").innerHTML = '<p style="color:red">数据加载失败</p>';
+  }
+};
+
+function verifyCard() {
+  const k = document.getElementById("cardKey").value.trim();
+  const err = document.getElementById("keyError");
+  err.textContent = "";
+  const card = CARD_LIST.find(c => c.key === k);
+  if (!card) { err.textContent = "卡密不存在"; return; }
+  if (card.used) { err.textContent = "已使用"; return; }
+
+  currentCard = card;
+  const maxG = Math.min(card.maxGroups, Math.floor(allAData.length / 11));
+  document.getElementById("cardTip").textContent = `最多可提取 ${maxG} 组`;
+  document.getElementById("groupCount").max = maxG;
+  document.getElementById("keySection").classList.add("hide");
+  document.getElementById("exportSection").classList.remove("hide");
+}
+
+function exportData() {
+  if (!currentCard) return;
+  const need = parseInt(document.getElementById("groupCount").value);
+  const max = Math.min(currentCard.maxGroups, Math.floor(allAData.length / 11));
+  if (need < 1 || need > max) { alert(`请输入 1~${max}`); return; }
+
+  const data = allAData.slice(0, need * 11);
+  const out = [];
+  for (let i = 0; i < data.length; i++) {
+    out.push([data[i]]);
+    if ((i + 1) % 11 === 0 && i !== data.length - 1) out.push([""]);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(out);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "数据");
+  XLSX.writeFile(wb, `数据_${need}组.xlsx`);
+  currentCard.used = true;
+  alert("导出成功！卡密已失效");
+  document.getElementById("groupCount").disabled = true;
+  document.querySelector("#exportSection button").disabled = true;
+}
+</script>
