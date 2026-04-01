@@ -1,249 +1,47 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
 <meta charset="UTF-8">
 <title>数据提取系统</title>
 <style>
-body{max-width:600px;margin:50px auto;padding:30px;font-family:微软雅黑;background:#f4f6f8}
-.card{background:#fff;padding:30px;border-radius:16px;box-shadow:0 2px 15px rgba(0,0,0,0.08);margin-bottom:20px}
-h2{color:#333;margin-top:0;text-align:center}
-.input-group{margin:12px 0}
-input{padding:10px 14px;border-radius:6px;border:1px solid #ddd;font-size:15px;width:100%;box-sizing:border-box}
-button{padding:10px 14px;background:#007bff;color:white;border:none;border-radius:6px;border:1px solid #007bff;cursor:pointer;font-size:15px;width:100%;margin-top:8px}
-button:hover{background:#0056b3;border-color:#0056b3}
-.error{color:#dc3545;margin:8px 0;font-size:14px}
-.info{color:#007bff;margin:8px 0;font-size:14px;text-align:center}
-.hide{display:none}
-.loading{text-align:center;padding:20px;color:#666}
-.admin{background:#fffce6;border:1px solid #ffcc00}
-textarea{width:100%;height:150px;margin-top:10px;padding:10px;box-sizing:border-box;border-radius:6px;border:1px solid #ddd}
+body{max-width:500px;margin:30px auto;padding:20px;font-family:微软雅黑;background:#f2f5f9}
+.card{background:#fff;padding:25px;border-radius:16px;box-shadow:0 2px 10px #00000010}
+h2{text-align:center;color:#222}
+input{width:100%;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;box-sizing:border-box}
+button{width:100%;padding:12px;background:#2962ff;color:white;border:0;border-radius:8px;font-size:16px;margin-top:5px}
+.msg{color:red;text-align:center;margin:8px 0}
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-
 <div class="card">
-    <h2>🔐 数据提取系统</h2>
-    <div id="loadingSection" class="loading"><p>正在加载数据，请稍候...</p></div>
-    <div id="keySection" class="hide">
-        <div class="input-group">
-            <label>请输入授权卡密</label>
-            <input type="text" id="cardKey" placeholder="输入卡密" autocomplete="off">
-        </div>
-        <div class="error" id="keyError"></div>
-        <button onclick="verifyCard()">验证并进入</button>
-    </div>
-    <div id="exportSection" class="hide">
-        <div class="info" id="cardTip"></div>
-        <div class="input-group">
-            <label>你需要多少条数据</label>
-            <input type="number" id="dataCount" min="1" value="1" autocomplete="off">
-        </div>
-        <button onclick="exportData()">立即导出TXT</button>
-        <div class="info" style="margin-top:15px">导出后数据不重复使用，卡密自动失效</div>
-    </div>
-    <div id="noDataSection" class="hide">
-        <p style="color:#dc3545;text-align:center;padding:20px;margin:0">库里没有数据了，请联系小新</p>
-    </div>
-</div>
-
-<div class="card admin hide" id="adminPanel">
-    <h2>⚙️ 卡密管理</h2>
-    <div class="input-group">
-        <label>生成卡密数量</label>
-        <input type="number" id="genCount" value="10" min="1" max="100" autocomplete="off">
-    </div>
-    <div class="input-group">
-        <label>卡密可用次数（1次/卡）</label>
-        <input type="number" id="genQuota" value="1" min="1" max="1" readonly>
-    </div>
-    <button onclick="generateKeys()">生成卡密</button>
-    <textarea id="keyList" placeholder="生成的卡密会显示在这里" readonly></textarea>
-    <button onclick="copyKeys()">复制全部卡密</button>
+  <h2>🔐 数据提取</h2>
+  <input id="key" placeholder="请输入卡密">
+  <input id="count" type="number" value="10" min="1">
+  <div class="msg" id="msg"></div>
+  <button onclick="getData()">立即提取数据</button>
 </div>
 
 <script>
-// ==================== 核心配置 ====================
-const DATA_FILE_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.xlsx";
-let allAData = []; // 原始完整数据（只读备份）
-let availableData = []; // 可用数据（提取后自动移除，不重复）
-let usedDataCount = 0; // 已提取数据条数
+const API = "https://your-api-url.com"; // 我会帮你填
 
-// 卡密库（初始测试卡密）
-let CARD_LIST = [
-  { key: "TEST001", used: false },
-  { key: "TEST002", used: false },
-  { key: "TEST003", used: false },
-  { key: "TEST004", used: false },
-  { key: "TEST005", used: false }
-];
-
-// ==================== 页面加载 & 数据初始化 ====================
-window.onload = async function () {
-  try {
-    // 加载Excel数据，强制跳过缓存
-    const res = await fetch(DATA_FILE_URL + "?t=" + new Date().getTime(), {
-      cache: "no-store",
-      mode: "cors"
-    });
-    
-    if (!res.ok) throw new Error(`文件加载失败: ${res.status}`);
-    
-    // 解析Excel，只提取A列有效数据
-    const buf = await res.arrayBuffer();
-    const wb = XLSX.read(buf);
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rawData = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: true });
-    
-    // 处理数据：强制转字符串，过滤空值，去重（避免原始数据重复）
-    allAData = rawData
-      .map(row => {
-        const cellValue = row[0];
-        return cellValue === null || cellValue === undefined ? "" : String(cellValue).trim();
-      })
-      .filter(c => c !== "")
-      .filter((value, index, self) => self.indexOf(value) === index); // 去重
-    
-    // 初始化可用数据（与原始数据一致，后续提取后移除）
-    availableData = [...allAData];
-    
-    // 数据加载成功，显示卡密登录界面
-    document.getElementById("loadingSection").classList.add("hide");
-    document.getElementById("keySection").classList.remove("hide");
-    
-    // 检查是否有可用数据，无数据直接显示提示
-    checkDataAvailability();
-
-  } catch (e) {
-    console.error("数据加载错误:", e);
-    document.getElementById("loadingSection").innerHTML = 
-      `<p style="color:red">数据加载失败，请联系管理员</p>`;
-  }
-};
-
-// ==================== 卡密验证逻辑 ====================
-function verifyCard() {
-  const inputKey = document.getElementById("cardKey").value.trim();
-  const errorEl = document.getElementById("keyError");
-  errorEl.textContent = "";
-
-  // 查找匹配的卡密
-  const matchedCard = CARD_LIST.find(card => card.key === inputKey);
-
-  // 验证逻辑
-  if (!matchedCard) {
-    errorEl.textContent = "卡密不存在，请检查输入";
-    return;
-  }
-  if (matchedCard.used) {
-    errorEl.textContent = "该卡密已使用，无法重复验证";
-    return;
-  }
-
-  // 验证通过：标记卡密为已使用，切换到导出界面
-  matchedCard.used = true;
-  document.getElementById("keySection").classList.add("hide");
+async function getData() {
+  const key = document.getElementById("key").value;
+  const count = parseInt(document.getElementById("count").value);
   
-  // 检查可用数据，决定显示导出界面还是无数据提示
-  checkDataAvailability();
-  if (availableData.length > 0) {
-    document.getElementById("exportSection").classList.remove("hide");
-    document.getElementById("cardTip").textContent = `卡密验证通过！当前可提取数据条数：${availableData.length} 条`;
-  }
-}
-
-// ==================== 数据提取 & TXT导出逻辑 ====================
-function exportData() {
-  // 检查是否有可用数据
-  if (availableData.length === 0) {
-    document.getElementById("exportSection").classList.add("hide");
-    document.getElementById("noDataSection").classList.remove("hide");
-    return;
-  }
-
-  // 获取用户输入的提取条数
-  const needCount = parseInt(document.getElementById("dataCount").value);
+  const res = await fetch(API + "/extract", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, count })
+  });
   
-  // 校验输入合法性
-  if (isNaN(needCount) || needCount < 1) {
-    alert("请输入有效的数据条数（至少1条）");
-    return;
-  }
-  if (needCount > availableData.length) {
-    alert(`当前可用数据仅 ${availableData.length} 条，请输入不超过该数量的数值`);
+  const data = await res.json();
+  if (!data.success) {
+    document.getElementById("msg").innerText = data.msg;
     return;
   }
 
-  // 提取对应条数的数据（从可用数据头部截取）
-  const exportData = availableData.slice(0, needCount);
-  // 从可用数据中移除已提取的部分（实现不重复使用）
-  availableData = availableData.slice(needCount);
-  // 更新已提取数据计数
-  usedDataCount += needCount;
-
-  // 生成TXT内容（每行一条数据）
-  const txtContent = exportData.join("\r\n");
-
-  // 下载TXT文件
-  const blob = new Blob([txtContent], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
+  const blob = new Blob([data.content], { type: "text/plain" });
   const a = document.createElement("a");
-  a.href = url;
-  a.download = `提取数据_${needCount}条_${new Date().getTime()}.txt`;
+  a.href = URL.createObjectURL(blob);
+  a.download = "提取数据.txt";
   a.click();
-  URL.revokeObjectURL(url);
-
-  // 导出成功提示
-  alert(`导出成功！共提取 ${needCount} 条数据\n已累计提取：${usedDataCount} 条\n剩余可用数据：${availableData.length} 条`);
-
-  // 禁用导出按钮（卡密已失效）
-  document.querySelector("#exportSection button").disabled = true;
-  document.querySelector("#exportSection button").style.background = "#6c757d";
-  document.querySelector("#exportSection button").style.borderColor = "#6c757d";
-  document.querySelector("#exportSection button").style.cursor = "not-allowed";
-
-  // 检查剩余数据，若用完则显示提示
-  checkDataAvailability();
-}
-
-// ==================== 检查数据可用性 ====================
-function checkDataAvailability() {
-  if (availableData.length === 0) {
-    document.getElementById("exportSection").classList.add("hide");
-    document.getElementById("noDataSection").classList.remove("hide");
-  }
-}
-
-// ==================== 卡密生成器（管理员功能） ====================
-function generateKeys() {
-  const count = parseInt(document.getElementById("genCount").value);
-  const quota = parseInt(document.getElementById("genQuota").value);
-  
-  if (isNaN(count) || count < 1 || count > 100) {
-    alert("请输入1-100之间的卡密生成数量");
-    return;
-  }
-
-  let keyList = "";
-  for (let i = 0; i < count; i++) {
-    // 生成8位随机卡密（字母+数字组合）
-    const key = "KEY" + Math.random().toString(36).substring(2, 8).toUpperCase();
-    CARD_LIST.push({ key, used: false });
-    keyList += key + "\n";
-  }
-
-  document.getElementById("keyList").value = keyList.trim();
-  alert(`成功生成 ${count} 个卡密，每个卡密可使用1次`);
-}
-
-// ==================== 复制卡密功能 ====================
-function copyKeys() {
-  const keyList = document.getElementById("keyList").value;
-  if (!keyList) {
-    alert("暂无卡密可复制");
-    return;
-  }
-
-  document.getElementById("keyList").select();
-  document.execCommand("copy");
-  alert("所有卡密已复制到剪贴板");
+  document.getElementById("msg").innerText = "提取成功";
 }
 </script>
