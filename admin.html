@@ -40,7 +40,6 @@ let allData = [];
 let usedData = [];
 let keys = [];
 
-// 从本地存储加载状态
 function loadFromStorage() {
   const savedKeys = localStorage.getItem("sys_keys");
   const savedUsed = localStorage.getItem("sys_used");
@@ -48,13 +47,11 @@ function loadFromStorage() {
   if(savedUsed) usedData = JSON.parse(savedUsed);
 }
 
-// 保存状态到本地存储
 function saveToStorage() {
   localStorage.setItem("sys_keys", JSON.stringify(keys));
   localStorage.setItem("sys_used", JSON.stringify(usedData));
 }
 
-// 加载Excel数据
 async function loadExcel() {
   try {
     const res = await fetch(DATA_URL + "?t=" + new Date().getTime(), {cache:"no-store"});
@@ -72,7 +69,6 @@ async function loadExcel() {
   }
 }
 
-// 页面加载时自动执行
 loadFromStorage();
 loadExcel();
 
