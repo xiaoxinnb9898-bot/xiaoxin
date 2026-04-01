@@ -18,7 +18,7 @@ button{padding:10px 14px;background:#007bff;color:white;border:none;border-radiu
 
 <div class="card">
     <h2>🔐 数据提取系统</h2>
-    <div id="loadingSection" class="loading"><p>正在加载数据...</p></div>
+    <div id="loadingSection" class="loading"><p>正在加载数据，请稍候...</p></div>
     <div id="keySection" class="hide">
         <div class="input-group">
             <label>请输入授权卡密</label>
@@ -39,8 +39,8 @@ button{padding:10px 14px;background:#007bff;color:white;border:none;border-radiu
 </div>
 
 <script>
-// 🔥 已修正为你真实的文件名！直接用，不用改！
-const DATA_FILE_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/测试数据总库.xlsx";
+// 已修正为纯英文文件名，彻底解决兼容问题
+const DATA_FILE_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.xlsx";
 
 // 卡密配置
 const CARD_LIST = [
@@ -56,19 +56,26 @@ let currentCard = null;
 
 window.onload = async function () {
   try {
-    const res = await fetch(DATA_FILE_URL);
-    if (!res.ok) throw new Error("文件加载失败");
+    // 强制跳过缓存，避免旧文件影响
+    const res = await fetch(DATA_FILE_URL + "?t=" + new Date().getTime(), {
+      cache: "no-store",
+      mode: "cors"
+    });
+    
+    if (!res.ok) throw new Error(`文件加载失败: ${res.status}`);
     const buf = await res.arrayBuffer();
     const wb = XLSX.read(buf);
     const ws = wb.Sheets[wb.SheetNames[0]];
     const raw = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: true });
+    
+    // 只提取A列有效数据，过滤空行
     allAData = raw.map(r => r[0] ?? "").filter(c => c.trim() !== "");
 
     document.getElementById("loadingSection").classList.add("hide");
     document.getElementById("keySection").classList.remove("hide");
   } catch (e) {
-    console.error("加载错误详情：", e);
-    document.getElementById("loadingSection").innerHTML = '<p style="color:red">数据加载失败，请检查文件地址</p>';
+    console.error("加载错误:", e);
+    document.getElementById("loadingSection").innerHTML = `<p style="color:red">数据加载失败: ${e.message}</p>`;
   }
 };
 
@@ -77,12 +84,13 @@ function verifyCard() {
   const err = document.getElementById("keyError");
   err.textContent = "";
   const card = CARD_LIST.find(c => c.key === k);
+  
   if (!card) { err.textContent = "卡密不存在"; return; }
   if (card.used) { err.textContent = "该卡密已使用"; return; }
 
   currentCard = card;
-  const maxG = Math.min(card.maxGroups, Math.floor(allAData.length / 11));
-  document.getElementById("cardTip").textContent = `卡密验证通过！最多可提取 ${maxG} 组`;
+  const maxG = Math.min(card.maxGroups, Math.floor(allAData.length / GROUP_ROW_COUNT));
+  document.getElementById("cardTip").textContent = `最多可提取 ${maxG} 组`;
   document.getElementById("groupCount").max = maxG;
   document.getElementById("keySection").classList.add("hide");
   document.getElementById("exportSection").classList.remove("hide");
@@ -91,8 +99,9 @@ function verifyCard() {
 function exportData() {
   if (!currentCard) return;
   const need = parseInt(document.getElementById("groupCount").value);
-  const max = Math.min(currentCard.maxGroups, Math.floor(allAData.length / 11));
-  if (need < 1 || need > max) { alert(`请输入 1~${max} 之间的有效组数`); return; }
+  const max = Math.min(currentCard.maxGroups, Math.floor(allAData.length / GROUP_ROW_COUNT));
+  
+  if (need < 1 || need > max) { alert(`请输入1~${max}之间的有效组数`); return; }
 
   const data = allAData.slice(0, need * 11);
   const out = [];
