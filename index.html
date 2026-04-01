@@ -15,26 +15,62 @@ button{background:#007bff;color:white;border:none;cursor:pointer}
 
 <div class="box">
   <h2>🔐 数据提取</h2>
-  <input id="key" placeholder="请输入卡密">
-  <input id="count" type="number" value="10" min="1" placeholder="你需要多少条数据">
-  <div id="msg" class="center"></div>
-  <button onclick="extract()">提取并导出TXT</button>
+  <div id="loading" class="center">正在加载数据，请稍候...</div>
+  <div id="main" style="display:none">
+    <input id="key" placeholder="请输入卡密">
+    <input id="count" type="number" value="10" min="1" placeholder="你需要多少条数据">
+    <div id="msg" class="center"></div>
+    <button onclick="extract()">提取并导出TXT</button>
+  </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script>
-// 共用本地存储，和后台互通
-function getKeys() { return JSON.parse(localStorage.getItem("sys_keys")||"[]") }
-function getUsedData() { return JSON.parse(localStorage.getItem("sys_used")||"[]") }
-function getAllData() {
-  let d = localStorage.getItem("sys_all");
-  if(d) return JSON.parse(d);
-  let arr = [];
-  for(let i=1;i<=500;i++) arr.push("数据_"+i);
-  localStorage.setItem("sys_all",JSON.stringify(arr));
-  return arr;
+const DATA_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/数据.xlsx";
+let allData = [];
+let usedData = [];
+let keys = [];
+
+// 从本地存储加载状态
+function loadFromStorage() {
+  const savedKeys = localStorage.getItem("sys_keys");
+  const savedUsed = localStorage.getItem("sys_used");
+  if(savedKeys) keys = JSON.parse(savedKeys);
+  if(savedUsed) usedData = JSON.parse(savedUsed);
 }
-function saveKeys(k) { localStorage.setItem("sys_keys",JSON.stringify(k)) }
-function saveUsed(d) { localStorage.setItem("sys_used",JSON.stringify(d)) }
+
+// 保存状态到本地存储
+function saveToStorage() {
+  localStorage.setItem("sys_keys", JSON.stringify(keys));
+  localStorage.setItem("sys_used", JSON.stringify(usedData));
+}
+
+// 加载Excel数据
+async function loadExcel() {
+  loadFromStorage();
+  try {
+    const res = await fetch(DATA_URL + "?t=" + new Date().getTime(), {cache:"no-store"});
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, {header:1, blankrows:true});
+    
+    // 提取A列有效数据，去重
+    allData = raw
+      .map(r => r[0] === null || r[0] === undefined ? "" : String(r[0]).trim())
+      .filter(c => c !== "")
+      .filter((v, i, self) => self.indexOf(v) === i);
+    
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("main").style.display = "block";
+  } catch (e) {
+    document.getElementById("loading").innerHTML = `<p class="center red">数据加载失败，请联系管理员</p>`;
+    console.error(e);
+  }
+}
+
+// 页面加载时自动执行
+loadExcel();
 
 async function extract() {
   const key = document.getElementById("key").value.trim();
@@ -44,38 +80,33 @@ async function extract() {
   if(!key){ msg.className="center red"; msg.innerText="请输入卡密"; return; }
   if(num<1){ msg.className="center red"; msg.innerText="至少1条"; return; }
 
-  const keys = getKeys();
   const card = keys.find(x=>x.key===key);
-
   if(!card){ msg.className="center red"; msg.innerText="卡密不存在"; return; }
   if(card.used){ msg.className="center red"; msg.innerText="卡密已使用"; return; }
 
-  const all = getAllData();
-  const used = getUsedData();
-  const available = all.filter(x=>!used.includes(x));
-
-  if(available.length===0){
+  const available = allData.filter(d => !usedData.includes(d));
+  if(available.length === 0){
     msg.className="center red";
     msg.innerText="库里没有数据了，请联系小新";
     return;
   }
-  if(num>available.length){
+  if(num > available.length){
     msg.className="center red";
-    msg.innerText="剩余不足，请输入更少条数";
+    msg.innerText=`剩余仅${available.length}条，请输入更少条数`;
     return;
   }
 
-  const take = available.slice(0,num);
-  used.push(...take);
-  card.used=true;
-  saveUsed(used);
-  saveKeys(keys);
+  const take = available.slice(0, num);
+  usedData.push(...take);
+  card.used = true;
+  saveToStorage();
 
-  const blob = new Blob([take.join("\r\n")],{type:"text/plain"});
+  const blob = new Blob([take.join("\r\n")], {type:"text/plain;charset=utf-8"});
   const a = document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="提取数据.txt";
+  a.href = URL.createObjectURL(blob);
+  a.download = `提取数据_${num}条.txt`;
   a.click();
+  URL.revokeObjectURL(a.href);
 
   msg.className="center green";
   msg.innerText="✅ 提取成功！";
