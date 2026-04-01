@@ -39,8 +39,8 @@ button{padding:10px 14px;background:#007bff;color:white;border:none;border-radiu
 </div>
 
 <script>
-// 已修正为纯英文文件名，彻底解决兼容问题
-const DATA_FILE_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.xlsx";
+// 修正为你的真实文件名
+const DATA_FILE_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/数据.xlsx";
 
 // 卡密配置
 const CARD_LIST = [
@@ -56,7 +56,6 @@ let currentCard = null;
 
 window.onload = async function () {
   try {
-    // 强制跳过缓存，避免旧文件影响
     const res = await fetch(DATA_FILE_URL + "?t=" + new Date().getTime(), {
       cache: "no-store",
       mode: "cors"
@@ -68,8 +67,10 @@ window.onload = async function () {
     const ws = wb.Sheets[wb.SheetNames[0]];
     const raw = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: true });
     
-    // 只提取A列有效数据，过滤空行
-    allAData = raw.map(r => r[0] ?? "").filter(c => c.trim() !== "");
+    // 核心修复：强制转字符串，避免undefined调用trim报错
+    allAData = raw
+      .map(r => r[0] ?? "")
+      .filter(c => typeof c === "string" && c.trim() !== "");
 
     document.getElementById("loadingSection").classList.add("hide");
     document.getElementById("keySection").classList.remove("hide");
@@ -101,7 +102,7 @@ function exportData() {
   const need = parseInt(document.getElementById("groupCount").value);
   const max = Math.min(currentCard.maxGroups, Math.floor(allAData.length / GROUP_ROW_COUNT));
   
-  if (need < 1 || need > max) { alert(`请输入1~${max}之间的有效组数`); return; }
+  if (isNaN(need) || need < 1 || need > max) { alert(`请输入1~${max}之间的有效组数`); return; }
 
   const data = allAData.slice(0, need * 11);
   const out = [];
