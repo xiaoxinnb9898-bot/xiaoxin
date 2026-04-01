@@ -30,7 +30,7 @@ button{background:#007bff;color:white;border:none;cursor:pointer}
 <!-- 管理员登录 -->
 <div class="box hide" id="admin-login-page">
   <h2>🔑 管理员登录</h2>
-  <input id="pwd-input" type="password" placeholder="请输入管理员密码">
+  <input id="pwd-input" type="password" placeholder="管理员密码">
   <div id="login-tip" class="center red"></div>
   <button onclick="adminLogin()">登录</button>
   <button class="gray" onclick="showUser()">返回提取页</button>
@@ -48,26 +48,14 @@ button{background:#007bff;color:white;border:none;cursor:pointer}
 </div>
 
 <script>
-// ==================== 配置 ====================
+// ==================== 云端通用核心 ====================
 const ADMIN_PASSWORD = "123456";
+const GIST_URL = "https://api.github.com/gists/97ec8a851ac7286512d8e3e7b7b9e766";
+let gistToken = ""; // 自动获取
 
-// 模拟数据
+// 测试数据
 let totalData = [];
-for (let i = 1; i <= 500; i++) totalData.push("数据_" + i);
-
-// ==================== 本地存储 ====================
-function getKeys() {
-  return JSON.parse(localStorage.getItem("keys") || "[]");
-}
-function setKeys(keys) {
-  localStorage.setItem("keys", JSON.stringify(keys));
-}
-function getUsedData() {
-  return JSON.parse(localStorage.getItem("usedData") || "[]");
-}
-function setUsedData(arr) {
-  localStorage.setItem("usedData", JSON.stringify(arr));
-}
+for (let i=1; i<=500; i++) totalData.push("数据_"+i);
 
 // ==================== 页面切换 ====================
 function showUser() {
@@ -87,66 +75,98 @@ function showAdmin() {
   loadKeyList();
 }
 
-// ==================== 管理员功能 ====================
-function adminLogin() {
-  const pwd = document.getElementById("pwd-input").value.trim();
+// ==================== 云端读取 ====================
+async function loadCloud() {
+  let res = await fetch(GIST_URL);
+  let data = await res.json();
+  let file = data.files["data.json"];
+  return JSON.parse(file.content);
+}
+
+// ==================== 登录 ====================
+async function adminLogin() {
+  let pwd = document.getElementById("pwd-input").value.trim();
   if (pwd === ADMIN_PASSWORD) {
+    let cloud = await loadCloud();
+    gistToken = cloud.token;
     showAdmin();
-    document.getElementById("login-tip").innerText = "";
   } else {
     document.getElementById("login-tip").innerText = "密码错误";
   }
 }
 
-function createKeys() {
-  const num = parseInt(document.getElementById("create-num").value) || 1;
-  const keys = getKeys();
-  const newKeys = [];
+// ==================== 生成卡密（云端） ====================
+async function createKeys() {
+  let num = parseInt(document.getElementById("create-num").value) || 1;
+  let cloud = await loadCloud();
+  let keys = cloud.keys || [];
+  let newKeys = [];
 
-  for (let i = 0; i < num; i++) {
-    const k = Math.random().toString(36).slice(2, 10).toUpperCase();
-    keys.push({ key: k, used: false });
+  for (let i=0; i<num; i++) {
+    let k = Math.random().toString(36).slice(2,10).toUpperCase();
+    keys.push({ key:k, used:false });
     newKeys.push(k);
   }
 
-  setKeys(keys);
+  await fetch(GIST_URL, {
+    method: "PATCH",
+    headers: { "Authorization": "token " + gistToken },
+    body: JSON.stringify({
+      files: {
+        "data.json": {
+          content: JSON.stringify({
+            token: gistToken,
+            keys: keys,
+            used: cloud.used || []
+          })
+        }
+      }
+    })
+  });
+
   alert("生成成功：\n" + newKeys.join("\n"));
   loadKeyList();
 }
 
-function loadKeyList() {
-  const keys = getKeys();
-  const used = getUsedData();
-  const freeCnt = keys.filter(k => !k.used).length;
-  const usedCnt = keys.filter(k => k.used).length;
-  const remainCnt = totalData.length - used.length;
+// ==================== 加载列表 ====================
+async function loadKeyList() {
+  let cloud = await loadCloud();
+  let keys = cloud.keys || [];
+  let usedData = cloud.used || [];
+
+  let free = keys.filter(k=>!k.used).length;
+  let used = keys.filter(k=>k.used).length;
+  let remain = totalData.length - usedData.length;
 
   document.getElementById("key-info").innerText =
-    `未使用：${freeCnt} | 已使用：${usedCnt} | 剩余数据：${remainCnt}条`;
+    `未使用：${free} | 已使用：${used} | 剩余数据：${remain}条`;
 
   let html = "";
-  keys.forEach(k => {
-    const s = k.used ? "已使用" : "未使用";
+  keys.forEach(k=>{
+    let s = k.used ? "已使用" : "未使用";
     html += `<div class="keyitem">${k.key} — ${s}</div>`;
   });
   document.getElementById("key-list").innerHTML = html;
 }
 
-// ==================== 用户提取 ====================
-function extract() {
-  const keyStr = document.getElementById("key-input").value.trim();
-  const need = parseInt(document.getElementById("count-input").value) || 1;
-  const tip = document.getElementById("tip");
+// ==================== 用户提取（全世界通用） ====================
+async function extract() {
+  let keyStr = document.getElementById("key-input").value.trim();
+  let need = parseInt(document.getElementById("count-input").value) || 1;
+  let tip = document.getElementById("tip");
 
   tip.innerText = "";
   tip.className = "center";
 
-  if (!keyStr) { tip.innerText = "请输入卡密"; return; }
-  if (need < 1) { tip.innerText = "至少1条"; return; }
+  if (!keyStr) { tip.innerText="请输入卡密"; return; }
+  if (need < 1) { tip.innerText="至少1条"; return; }
 
-  const keys = getKeys();
-  const keyItem = keys.find(k => k.key === keyStr);
+  // 从云端读取
+  let cloud = await loadCloud();
+  let keys = cloud.keys || [];
+  let usedData = cloud.used || [];
 
+  let keyItem = keys.find(k=>k.key === keyStr);
   if (!keyItem) {
     tip.innerText = "卡密不存在";
     tip.className = "center red";
@@ -158,9 +178,7 @@ function extract() {
     return;
   }
 
-  const used = getUsedData();
-  const available = totalData.filter(d => !used.includes(d));
-
+  let available = totalData.filter(d=>!usedData.includes(d));
   if (available.length === 0) {
     tip.innerText = "库里没有数据了，请联系小新";
     tip.className = "center red";
@@ -172,15 +190,30 @@ function extract() {
     return;
   }
 
-  const take = available.slice(0, need);
-  used.push(...take);
+  // 提取并同步云端
+  let take = available.slice(0, need);
+  usedData.push(...take);
   keyItem.used = true;
 
-  setUsedData(used);
-  setKeys(keys);
+  await fetch(GIST_URL, {
+    method: "PATCH",
+    headers: { "Authorization": "token " + cloud.token },
+    body: JSON.stringify({
+      files: {
+        "data.json": {
+          content: JSON.stringify({
+            token: cloud.token,
+            keys: keys,
+            used: usedData
+          })
+        }
+      }
+    })
+  });
 
-  const blob = new Blob([take.join("\r\n")], { type: "text/plain" });
-  const a = document.createElement("a");
+  // 导出
+  let blob = new Blob([take.join("\r\n")], {type:"text/plain"});
+  let a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "提取数据.txt";
   a.click();
