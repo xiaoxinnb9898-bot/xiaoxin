@@ -33,106 +33,17 @@ button{width:100%;padding:14px;border-radius:12px;color:white;border:none;font-s
 const GIST_ID = "2f260b4654ae345630ef14017f240703";
 const GIST_TOKEN = "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";
 
-// 100条固定卡密，每条300条
 const KAMI_POOL = [
-  "A7S2K9D1",
-  "B8P3L0E2",
-  "C9Q4M1F3",
-  "D0R5N2G4",
-  "E1S6O3H5",
-  "F2T7P4I6",
-  "G3U8Q5J7",
-  "H4V9R6K8",
-  "I5W0S7L9",
-  "J6X1T8M0",
-  "K7Y2U9N1",
-  "L8Z3V0O2",
-  "M9A4W1P3",
-  "N0B5X2Q4",
-  "O1C6Y3R5",
-  "P2D7Z4S6",
-  "Q3E8A5T7",
-  "R4F9B6U8",
-  "S5G0C7V9",
-  "T6H1D8W0",
-  "U7I2E9X1",
-  "V8J3F0Y2",
-  "W9K4G1Z3",
-  "X0L5H2A4",
-  "Y1M6I3B5",
-  "Z2N7J4C6",
-  "13O8K5D7",
-  "24P9L6E8",
-  "35Q0M7F9",
-  "46R1N8G0",
-  "57S2O9H1",
-  "68T3P0I2",
-  "79U4Q1J3",
-  "80V5R2K4",
-  "91W6S3L5",
-  "02X7T4M6",
-  "13Y8U5N7",
-  "24Z9V6O8",
-  "35A0W7P9",
-  "46B1X8Q0",
-  "57C2Y9R1",
-  "68D3Z0S2",
-  "79E4A1T3",
-  "80F5B2U4",
-  "91G6C3V5",
-  "02H7D4W6",
-  "13I8E5X7",
-  "24J9F6Y8",
-  "35K0G7Z9",
-  "46L1H8A0",
-  "57M2I9B1",
-  "68N3J0C2",
-  "79O4K1D3",
-  "80P5L2E4",
-  "91Q6M3F5",
-  "02R7N4G6",
-  "13S8O5H7",
-  "24T9P6I8",
-  "35U0Q7J9",
-  "46V1R8K0",
-  "57W2S9L1",
-  "68X3T0M2",
-  "79Y4U1N3",
-  "80Z5V2O4",
-  "91A6W3P5",
-  "02B7X4Q6",
-  "13C8Y5R7",
-  "24D9Z6S8",
-  "35E0A7T9",
-  "46F1B8U0",
-  "57G2C9V1",
-  "68H3D0W2",
-  "79I4E1X3",
-  "80J5F2Y4",
-  "91K6G3Z5",
-  "02L7H4A6",
-  "13M8I5B7",
-  "24N9J6C8",
-  "35O0K7D9",
-  "46P1L8E0",
-  "57Q2M9F1",
-  "68R3N0G2",
-  "79S4O1H3",
-  "80T5P2I4",
-  "91U6Q3J5",
-  "02V7R4K6",
-  "13W8S5L7",
-  "24X9T6M8",
-  "35Y0U7N9",
-  "46Z1V8O0",
-  "57A2W9P1",
-  "68B3X0Q2",
-  "79C4Y1R3",
-  "80D5Z2S4",
-  "91E6A3T5",
-  "02F7B4U6",
-  "13G8C5V7",
-  "24H9D6W8"
+  "A7S2K9D1","B8P3L0E2","C9Q4M1F3","D0R5N2G4","E1S6O3H5","F2T7P4I6","G3U8Q5J7","H4V9R6K8","I5W0S7L9","J6X1T8M0",
+  "K7Y2U9N1","L8Z3V0O2","M9A4W1P3","N0B5X2Q4","O1C6Y3R5","P2D7Z4S6","Q3E8A5T7","R4F9B6U8","S5G0C7V9","T6H1D8W0",
+  "U7I2E9X1","V8J3F0Y2","W9K4G1Z3","X0L5H2A4","Y1M6I3B5","Z2N7J4C6","13O8K5D7","24P9L6E8","35Q0M7F9","46R1N8G0",
+  "57S2O9H1","68T3P0I2","79U4Q1J3","80V5R2K4","91W6S3L5","02X7T4M6","13Y8U5N7","24Z9V6O8","35A0W7P9","46B1X8Q0",
+  "57C2Y9R1","68D3Z0S2","79E4A1T3","80F5B2U4","91G6C3V5","02H7D4W6","13I8E5X7","24J9F6Y8","35K0G7Z9","46L1H8A0",
+  "57M2I9B1","68N3J0C2","79O4K1D3","80P5L2E4","91Q6M3F5","02R7N4G6","13S8O5H7","24T9P6I8","35U0Q7J9","46V1R8K0",
+  "57W2S9L1","68X3T0M2","79Y4U1N3","80Z5V2O4","91A6W3P5","02B7X4Q6","13C8Y5R7","24D9Z6S8","35E0A7T9","46F1B8U0",
+  "57G2C9V1","68H3D0W2","79I4E1X3","80J5F2Y4","91K6G3Z5","02L7H4A6","13M8I5B7","24N9J6C8","35O0K7D9","46P1L8E0",
+  "57Q2M9F1","68R3N0G2","79S4O1H3","80T5P2I4","91U6Q3J5","02V7R4K6","13W8S5L7","24X9T6M8","35Y0U7N9","46Z1V8O0",
+  "57A2W9P1","68B3X0Q2","79C4Y1R3","80D5Z2S4","91E6A3T5","02F7B4U6","13G8C5V7","24H9D6W8"
 ];
 
 function getDynamicPwd() {
@@ -145,30 +56,21 @@ async function getCard() {
   const name = document.getElementById("name").value.trim();
   const pwd = document.getElementById("pwd").value.trim();
   const msg = document.getElementById("msg");
-  const codeBox = document.getElementById("codeBox");
 
   if (!name) { msg.className = "msg red"; msg.innerText = "❌ 请输入名字"; return; }
   if (!pwd) { msg.className = "msg red"; msg.innerText = "❌ 请输入动态密码"; return; }
-  if (pwd !== getDynamicPwd()) { msg.className = "msg red"; msg.innerText = "❌ 动态密码错误！"; return; }
+  if (pwd !== getDynamicPwd()) { msg.className = "msg red"; msg.innerText = "❌ 密码错误"; return; }
 
   try {
-    let res = await fetch(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`);
-    let text = await res.text();
-    let data = JSON.parse(text);
+    let res = await fetch(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json`);
+    let data = await res.json();
     data.keys = data.keys || [];
     data.logs = data.logs || [];
 
-    const usedCodes = new Set([
-      ...data.keys.map(k => k.key),
-      ...data.logs.map(l => l.key)
-    ]);
-    const available = KAMI_POOL.filter(c => !usedCodes.has(c));
+    const used = new Set([...data.keys.map(k=>k.key), ...data.logs.map(l=>l.key)]);
+    const available = KAMI_POOL.filter(c => !used.has(c));
 
-    if (available.length === 0) {
-      msg.className = "msg red";
-      msg.innerText = "❌ 今日卡密已领完";
-      return;
-    }
+    if (available.length === 0) { msg.className = "msg red"; msg.innerText = "❌ 卡密已领完"; return; }
 
     const code = available[Math.floor(Math.random() * available.length)];
     data.keys.push({
@@ -181,19 +83,17 @@ async function getCard() {
 
     await fetch(`https://api.github.com/gists/${GIST_ID}`, {
       method: "PATCH",
-      headers: { "Authorization": `token ${GIST_TOKEN}`, "Content-Type": "application/json" },
+      headers: { Authorization: `token ${GIST_TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({ files: { "data.json": { content: JSON.stringify(data, null, 2) } } })
     });
 
-    codeBox.innerText = `${code}（可提取300条）`;
-    codeBox.style.display = "block";
+    document.getElementById("codeBox").innerText = `${code}（300条）`;
+    document.getElementById("codeBox").style.display = "block";
     msg.className = "msg green";
-    msg.innerText = "✅ 领取成功！复制去提取";
-
+    msg.innerText = "✅ 领取成功";
   } catch (e) {
     msg.className = "msg red";
     msg.innerText = "❌ 领取失败";
-    console.error(e);
   }
 }
 </script>
