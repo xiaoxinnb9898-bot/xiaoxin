@@ -1,259 +1,105 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>免费领取提取码</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: "微软雅黑", sans-serif;
-        }
-        body {
-            background: #f5f7fa;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        .box {
-            background: #fff;
-            padding: 30px;
-            border-radius: 20px;
-            width: 100%;
-            max-width: 500px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-        h2 {
-            text-align: center;
-            color: #1a1a1a;
-            margin-bottom: 30px;
-            font-size: 28px;
-        }
-        .input-group {
-            margin-bottom: 20px;
-        }
-        input {
-            width: 100%;
-            padding: 14px;
-            border: 1px solid #ddd;
-            border-radius: 12px;
-            font-size: 16px;
-            outline: none;
-            transition: border 0.3s;
-        }
-        input:focus {
-            border-color: #007bff;
-        }
-        button {
-            width: 100%;
-            padding: 16px;
-            border: none;
-            border-radius: 12px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.3s;
-            margin-bottom: 15px;
-        }
-        .btn-primary {
-            background: #007bff;
-            color: #fff;
-        }
-        .btn-primary:hover {
-            background: #0056b3;
-        }
-        .btn-admin {
-            background: #ff7043;
-            color: #fff;
-        }
-        .btn-channel {
-            background: #9c27b0;
-            color: #fff;
-        }
-        .msg {
-            text-align: center;
-            margin: 15px 0;
-            font-size: 16px;
-            min-height: 24px;
-        }
-        .msg.red {
-            color: #dc3545;
-        }
-        .msg.green {
-            color: #28a745;
-        }
-        .code-area {
-            background: #e3f2fd;
-            padding: 14px;
-            border-radius: 12px;
-            text-align: center;
-            font-size: 22px;
-            font-weight: bold;
-            margin: 15px 0;
-            display: none;
-            word-break: break-all;
-        }
-    </style>
-</head>
-<body>
-    <div class="box">
-        <h2>🎁 免费领取提取码</h2>
-        <div class="input-group">
-            <input type="text" id="name" placeholder="请输入你的名字" value="十度">
-        </div>
-        <div class="input-group">
-            <input type="text" id="pwd" placeholder="请输入当前动态密码" value="XIN10NB">
-        </div>
-        <button class="btn-primary" onclick="getKey()">立即领取</button>
-        <div class="msg" id="msg"></div>
-        <div class="code-area" id="codeArea"></div>
-        <button class="btn-admin" onclick="window.open('https://t.me/XIAOXINOOO2','_blank')">📞 联系管理员小新</button>
-        <button class="btn-channel" onclick="window.open('https://t.me/vip98886888','_blank')">📢 官方飞机频道</button>
-    </div>
+<meta charset="UTF-8">
+<title>免费领取卡密</title>
+<style>
+*{box-sizing:border-box}
+body{background:#f5f7fa;font-family:微软雅黑;padding:20px;display:flex;justify-content:center;align-items:center;min-height:100vh}
+.box{background:#fff;padding:30px;border-radius:20px;width:100%;max-width:500px;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+h2{text-align:center;margin-bottom:20px}
+input{width:100%;padding:14px;border-radius:12px;border:1px solid #ddd;margin:8px 0}
+button{width:100%;padding:14px;border-radius:12px;background:#007bff;color:white;border:none;font-size:16px;margin-top:10px}
+.msg{text-align:center;margin:10px 0;font-size:16px}
+.red{color:red}
+.green{color:green}
+.code{background:#e3f2fd;padding:14px;border-radius:12px;text-align:center;font-size:20px;font-weight:bold;margin-top:10px;display:none}
+</style>
 
-    <script>
-        // ==================== 配置区 ====================
-        // 👇 替换成你自己的 GitHub Gist Token（仅gist权限）
-        const GIST_TOKEN = "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";
-        // 👇 你的 Gist ID（保持不变）
-        const GIST_ID = "2f260b4654ae345630ef14017f240703";
-        // 👇 Gist 用户名（保持不变）
-        const GIST_USER = "xiaoxinnb9898-bot";
-        // ==================== 配置区 ====================
+<div class="box">
+  <h2>🎁 免费领取额度卡密</h2>
+  <input id="name" placeholder="请输入你的名字">
+  <input id="pwd" placeholder="请输入动态密码">
+  <div class="msg" id="msg"></div>
+  <div class="code" id="codeBox"></div>
+  <button onclick="getCard()">立即领取</button>
+</div>
 
-        // 生成6位大写提取码
-        function generateKey() {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let key = '';
-            for (let i = 0; i < 6; i++) {
-                key += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return key;
-        }
+<script>
+// 配置
+const GIST_ID = "2f260b4654ae345630ef14017f240703";
+const GIST_TOKEN = "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";
 
-        // 动态密码：XIN+分钟+NB
-        function getDynamicKey() {
-            const now = new Date();
-            const mm = now.getMinutes().toString().padStart(2, '0');
-            return `XIN${mm}NB`;
-        }
+// 额度卡密（你要的就是这个！）
+const KAMI_POOL = [
+  { code: "KAMI10", limit: 10 },
+  { code: "KAMI50", limit: 50 },
+  { code: "KAMI100", limit: 100 },
+  { code: "KAMI300", limit: 300 },
+  { code: "KAMI500", limit: 500 },
+  { code: "KAMI1000", limit: 1000 }
+];
 
-        // 核心：用 GitHub API + 本地存储兜底，彻底解决网络问题
-        async function getKey() {
-            const name = document.getElementById("name").value.trim();
-            const pwd = document.getElementById("pwd").value.trim().toUpperCase();
-            const msg = document.getElementById("msg");
-            const codeArea = document.getElementById("codeArea");
+// 动态密码
+function getDynamicPwd() {
+  const now = new Date();
+  const m = now.getMinutes().toString().padStart(2, '0');
+  return `XIN${m}NB`;
+}
 
-            // 1. 基础校验
-            if (!name) {
-                msg.className = "msg red";
-                msg.innerText = "❌ 请输入名字";
-                return;
-            }
-            if (!pwd) {
-                msg.className = "msg red";
-                msg.innerText = "❌ 请输入动态密码";
-                return;
-            }
+// 领取逻辑
+async function getCard() {
+  const name = document.getElementById("name").value.trim();
+  const pwd = document.getElementById("pwd").value.trim();
+  const msg = document.getElementById("msg");
+  const codeBox = document.getElementById("codeBox");
 
-            // 2. 验证动态密码
-            const realPwd = getDynamicKey();
-            if (pwd !== realPwd) {
-                msg.className = "msg red";
-                msg.innerText = `❌ 动态密码错误！当前正确密码：${realPwd}`;
-                return;
-            }
+  if (!name) { msg.className = "msg red"; msg.innerText = "❌ 请输入名字"; return; }
+  if (!pwd) { msg.className = "msg red"; msg.innerText = "❌ 请输入动态密码"; return; }
+  if (pwd !== getDynamicPwd()) { msg.className = "msg red"; msg.innerText = "❌ 动态密码错误"; return; }
 
-            // 3. 生成提取码
-            const key = generateKey();
+  try {
+    // 随机发一个额度卡密
+    const randomCard = KAMI_POOL[Math.floor(Math.random() * KAMI_POOL.length)];
+    const code = randomCard.code;
+    const limit = randomCard.limit;
 
-            try {
-                // 4. 方案A：直接请求 GitHub API（用 no-cors 模式绕过跨域）
-                const rawRes = await fetch(`https://gist.githubusercontent.com/${GIST_USER}/${GIST_ID}/raw/data.json`, {
-                    method: "GET",
-                    mode: "no-cors",
-                    cache: "no-store",
-                    headers: {
-                        "Authorization": `token ${GIST_TOKEN}`,
-                        "Accept": "application/json"
-                    }
-                });
+    // 读取 Gist
+    let res = await fetch(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`);
+    let text = await res.text();
+    let data = JSON.parse(text);
 
-                // 5. 方案B：如果API失败，用本地存储兜底
-                let data;
-                if (rawRes.ok) {
-                    const resText = await rawRes.text();
-                    data = JSON.parse(resText);
-                } else {
-                    // 从本地 localStorage 读取历史数据，保证不丢数据
-                    const localData = localStorage.getItem("xiaoxin_gist_data");
-                    data = localData ? JSON.parse(localData) : { keys: [], logs: [] };
-                }
+    if (!data.keys) data.keys = [];
 
-                // 6. 补全数据结构
-                data.keys = data.keys || [];
-                data.logs = data.logs || [];
+    // 把领取记录写入 Gist（和后台互通）
+    data.keys.push({
+      name: name,
+      key: code,
+      limit: limit,
+      time: new Date().toLocaleString(),
+      used: false
+    });
 
-                // 7. 添加新提取码
-                data.keys.push({
-                    name: name,
-                    key: key,
-                    time: new Date().toLocaleString(),
-                    used: false
-                });
+    // 同步 Gist
+    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: "PATCH",
+      headers: {
+        "Authorization": `token ${GIST_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        files: { "data.json": { content: JSON.stringify(data, null, 2) } }
+      })
+    });
 
-                // 8. 同步到本地存储（兜底）
-                localStorage.setItem("xiaoxin_gist_data", JSON.stringify(data));
+    // 显示卡密
+    codeBox.innerText = `${code}（可提取 ${limit} 条）`;
+    codeBox.style.display = "block";
+    msg.className = "msg green";
+    msg.innerText = "✅ 领取成功！复制去提取数据";
 
-                // 9. 尝试同步到 GitHub Gist（即使失败，本地也有数据）
-                try {
-                    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-                        method: "PATCH",
-                        mode: "no-cors",
-                        headers: {
-                            "Authorization": `token ${GIST_TOKEN}`,
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            files: {
-                                "data.json": { content: JSON.stringify(data, null, 2) }
-                            }
-                        })
-                    });
-                } catch (e) {
-                    console.warn("Gist同步失败，本地数据已保存:", e);
-                }
-
-                // 10. 显示成功
-                codeArea.innerText = `✅ 你的提取码：${key}`;
-                codeArea.style.display = "block";
-                msg.className = "msg green";
-                msg.innerText = "✅ 领取成功！复制去提取数据";
-
-            } catch (err) {
-                // 11. 兜底：即使网络完全失败，本地也能生成提取码
-                console.error("网络请求失败，启用本地兜底:", err);
-                const localData = localStorage.getItem("xiaoxin_gist_data") || JSON.stringify({ keys: [], logs: [] });
-                const data = JSON.parse(localData);
-                data.keys.push({
-                    name: name,
-                    key: key,
-                    time: new Date().toLocaleString(),
-                    used: false
-                });
-                localStorage.setItem("xiaoxin_gist_data", JSON.stringify(data));
-
-                codeArea.innerText = `✅ 你的提取码：${key}（本地缓存版）`;
-                codeArea.style.display = "block";
-                msg.className = "msg green";
-                msg.innerText = "✅ 领取成功（本地缓存，网络恢复后同步）";
-            }
-        }
-    </script>
-</body>
-</html>
+  } catch (e) {
+    msg.className = "msg red";
+    msg.innerText = "❌ 领取失败，请重试";
+    console.error(e);
+  }
+}
+</script>
