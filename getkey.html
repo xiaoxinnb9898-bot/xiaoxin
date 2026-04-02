@@ -30,7 +30,10 @@ button{background:#007bff;color:white;border:none;cursor:pointer}
 <script>
 const GIST_ID = "2f260b4654ae345630ef14017f240703";
 const GIST_TOKEN = "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";
-const JSON_URL = `https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`;
+const PROXY = "https://api.allorigins.win/get?url=";
+const RAW_URL = encodeURIComponent(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json`);
+const JSON_URL = PROXY + RAW_URL;
+const API_URL = `https://api.github.com/gists/${GIST_ID}`;
 
 function generateKey() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -58,45 +61,36 @@ async function getKey() {
 
   const realPwd = getDynamicKey();
   if (pwd !== realPwd) {
-    msg.className = "red"; msg.innerText = `❌ 动态密码错误！当前正确密码：${realPwd}`; return;
+    msg.className = "red"; msg.innerText = "❌ 动态密码错误！当前：" + realPwd; return;
   }
 
-  const key = generateKey();
-
   try {
-    const res = await fetch(JSON_URL, { cache: "no-store" });
-    const data = await res.json();
+    let res = await fetch(JSON_URL + "&t=" + Date.now());
+    let json = await res.json();
+    let data = JSON.parse(json.contents);
     data.keys = data.keys || [];
 
-    data.keys.push({
-      name: name,
-      key: key,
-      time: new Date().toLocaleString(),
-      used: false
-    });
+    const key = generateKey();
+    data.keys.push({ name, key, time: new Date().toLocaleString(), used: false });
 
-    const saveRes = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+    await fetch(API_URL, {
       method: "PATCH",
       headers: {
         "Authorization": `token ${GIST_TOKEN}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        files: {
-          "data.json": { content: JSON.stringify(data, null, 2) }
-        }
+        files: { "data.json": { content: JSON.stringify(data, null, 2) } }
       })
     });
 
-    if (!saveRes.ok) throw new Error("写入失败：" + saveRes.statusText);
-
-    codeArea.innerText = `✅ 你的提取码：${key}`;
+    codeArea.innerText = `✅ 提取码：${key}`;
     codeArea.classList.remove("hide");
     msg.className = "green";
-    msg.innerText = "✅ 领取成功！复制去提取数据";
+    msg.innerText = "✅ 领取成功！";
   } catch (err) {
     msg.className = "red";
-    msg.innerText = `❌ 提取码生成失败：${err.message}`;
+    msg.innerText = "❌ 生成失败：" + err.message;
     console.error(err);
   }
 }
