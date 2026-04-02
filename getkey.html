@@ -16,11 +16,13 @@ button{width:100%;padding:14px;border-radius:12px;background:#007bff;color:white
 
 <div class="box">
   <h2>🎁 免费领取额度卡密</h2>
-  <input id="name" placeholder="请输入你的名字">
+  <input id="name" placeholder="请输入你的名字" value="十度">
   <input id="pwd" placeholder="请输入动态密码">
   <div class="msg" id="msg"></div>
   <div class="code" id="codeBox"></div>
   <button onclick="getCard()">立即领取</button>
+  <button style="background:#ff7043;margin-top:15px" onclick="window.open('https://t.me/XIAOXINOOO2','_blank')">📞 联系管理员小新</button>
+  <button style="background:#9c27b0;margin-top:15px" onclick="window.open('https://t.me/vip98886888','_blank')">📢 官方飞机频道</button>
 </div>
 
 <script>
@@ -28,7 +30,7 @@ button{width:100%;padding:14px;border-radius:12px;background:#007bff;color:white
 const GIST_ID = "2f260b4654ae345630ef14017f240703";
 const GIST_TOKEN = "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";
 
-// 额度卡密（你要的就是这个！）
+// 额度卡密池
 const KAMI_POOL = [
   { code: "KAMI10", limit: 10 },
   { code: "KAMI50", limit: 50 },
@@ -38,7 +40,7 @@ const KAMI_POOL = [
   { code: "KAMI1000", limit: 1000 }
 ];
 
-// 动态密码
+// 动态密码（仅内部校验，不对外显示）
 function getDynamicPwd() {
   const now = new Date();
   const m = now.getMinutes().toString().padStart(2, '0');
@@ -52,24 +54,39 @@ async function getCard() {
   const msg = document.getElementById("msg");
   const codeBox = document.getElementById("codeBox");
 
-  if (!name) { msg.className = "msg red"; msg.innerText = "❌ 请输入名字"; return; }
-  if (!pwd) { msg.className = "msg red"; msg.innerText = "❌ 请输入动态密码"; return; }
-  if (pwd !== getDynamicPwd()) { msg.className = "msg red"; msg.innerText = "❌ 动态密码错误"; return; }
+  // 基础校验
+  if (!name) {
+    msg.className = "msg red";
+    msg.innerText = "❌ 请输入名字";
+    return;
+  }
+  if (!pwd) {
+    msg.className = "msg red";
+    msg.innerText = "❌ 请输入动态密码";
+    return;
+  }
+
+  // 动态密码校验（只报错，不显示正确密码！）
+  if (pwd !== getDynamicPwd()) {
+    msg.className = "msg red";
+    msg.innerText = "❌ 动态密码错误！";
+    return;
+  }
 
   try {
-    // 随机发一个额度卡密
+    // 随机发放额度卡密
     const randomCard = KAMI_POOL[Math.floor(Math.random() * KAMI_POOL.length)];
     const code = randomCard.code;
     const limit = randomCard.limit;
 
-    // 读取 Gist
+    // 读取Gist数据
     let res = await fetch(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`);
     let text = await res.text();
     let data = JSON.parse(text);
 
     if (!data.keys) data.keys = [];
 
-    // 把领取记录写入 Gist（和后台互通）
+    // 写入领取记录（和后台/提取页完全互通）
     data.keys.push({
       name: name,
       key: code,
@@ -78,7 +95,7 @@ async function getCard() {
       used: false
     });
 
-    // 同步 Gist
+    // 同步Gist
     await fetch(`https://api.github.com/gists/${GIST_ID}`, {
       method: "PATCH",
       headers: {
@@ -90,7 +107,7 @@ async function getCard() {
       })
     });
 
-    // 显示卡密
+    // 显示成功和卡密
     codeBox.innerText = `${code}（可提取 ${limit} 条）`;
     codeBox.style.display = "block";
     msg.className = "msg green";
