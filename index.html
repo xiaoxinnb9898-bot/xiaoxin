@@ -38,13 +38,9 @@ button{cursor:pointer;border:none;color:#fff}
   <div class="result hide" id="resultArea"></div>
 </div>
 
-<audio id="bgMusic" loop autoplay>
-<source src="https://music.163.com/song/media/outer/url?id=2114251567.mp3" type="audio/mpeg">
-
-
 <script>
 const GIST_ID = "2f260b4654ae345630ef14017f240703";
-const GIST_TOKEN = "2f260b4654ae345630ef14017f240703";
+const GIST_TOKEN = "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";
 const DATA_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.txt";
 const JSON_URL = `https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`;
 
@@ -52,90 +48,88 @@ let allData = [];
 let result = [];
 
 async function loadData(){
-  let r = await fetch(DATA_URL+"?t="+Date.now(), { cache: "no-store" });
-  let t = await r.text();
+  const r = await fetch(DATA_URL+"?t="+Date.now(), { cache: "no-store" });
+  const t = await r.text();
   allData = t.split("\n").map(i=>i.trim()).filter(i=>i);
   await updateRemain();
 }
 
 async function updateRemain(){
-  let res = await fetch(JSON_URL, { cache: "no-store" });
-  let data = await res.json();
-  let used = data.logs ? data.logs.flatMap(l=> (l.data || "").split("\n").filter(i=>i)) : [];
-  let remain = allData.filter(d=>!used.includes(d)).length;
+  const res = await fetch(JSON_URL, { cache: "no-store" });
+  const data = await res.json();
+  const used = data.logs ? data.logs.flatMap(l=> (l.data || "").split("\n").filter(i=>i)) : [];
+  const remain = allData.filter(d=>!used.includes(d)).length;
   document.getElementById("remain").innerText = `剩余可用：${remain} 条`;
 }
 
 async function getData(){
-  let name = document.getElementById("name").value.trim();
-  let cnt = parseInt(document.getElementById("count").value)||1;
-  // 🔴 核心修复：强制转大写，和生成的提取码格式完全统一
-  let key = document.getElementById("key").value.trim().toUpperCase();
-  let msg = document.getElementById("msg");
+  const name = document.getElementById("name").value.trim();
+  const cnt = parseInt(document.getElementById("count").value)||1;
+  const key = document.getElementById("key").value.trim().toUpperCase();
+  const msg = document.getElementById("msg");
 
-  if(!name){msg.className="red";msg.innerText="请输入名字";return;}
-  if(cnt<1){msg.className="red";msg.innerText="至少1条";return;}
-  if(!key){msg.className="red";msg.innerText="请输入提取码";return;}
+  if(!name){msg.className="red";msg.innerText="❌ 请输入名字";return;}
+  if(cnt<1){msg.className="red";msg.innerText="❌ 至少1条";return;}
+  if(!key){msg.className="red";msg.innerText="❌ 请输入提取码";return;}
 
-  // 🔴 核心修复：强制拉取最新JSON，禁用缓存
-  let res = await fetch(JSON_URL, { cache: "no-store" });
-  let data = await res.json();
-  data.keys = data.keys || [];
-  
-  // 🔴 核心修复：严格匹配提取码（大写+未使用）
-  let findKey = data.keys.find(k => k.key === key && k.used === false);
+  try {
+    const res = await fetch(JSON_URL, { cache: "no-store" });
+    const data = await res.json();
+    data.keys = data.keys || [];
+    
+    const findKey = data.keys.find(k => k.key === key && k.used === false);
 
-  if(!findKey){
-    msg.className="red";
-    msg.innerText="❌ 提取码无效/已使用！请检查提取码是否正确，或联系管理员";
-    return;
-  }
+    if(!findKey){
+      msg.className="red";
+      msg.innerText="❌ 提取码无效/已使用！";
+      return;
+    }
 
-  let used = data.logs ? data.logs.flatMap(l=> (l.data || "").split("\n").filter(i=>i)) : [];
-  let ava = allData.filter(d=>!used.includes(d));
+    const used = data.logs ? data.logs.flatMap(l=> (l.data || "").split("\n").filter(i=>i)) : [];
+    const ava = allData.filter(d=>!used.includes(d));
 
-  if(ava.length===0){
-    msg.className="red";msg.innerText="❌ 数据已全部发完！";return;
-  }
-  if(cnt>ava.length){
-    msg.className="red";msg.innerText=`❌ 仅剩 ${ava.length} 条数据，无法提取${cnt}条`;return;
-  }
+    if(ava.length===0){
+      msg.className="red";msg.innerText="❌ 数据已全部发完！";return;
+    }
+    if(cnt>ava.length){
+      msg.className="red";msg.innerText=`❌ 仅剩 ${ava.length} 条`;return;
+    }
 
-  result = ava.slice(0,cnt);
-  findKey.used = true;
-  data.logs = data.logs || [];
-  data.logs.push({
-    name: name,
-    count: cnt,
-    time: new Date().toLocaleString(),
-    data: result.join("\n")
-  });
+    result = ava.slice(0,cnt);
+    findKey.used = true;
+    data.logs = data.logs || [];
+    data.logs.push({
+      name: name,
+      count: cnt,
+      time: new Date().toLocaleString(),
+      data: result.join("\n")
+    });
 
-  await saveJson(data);
-  await updateRemain();
-
-  document.getElementById("resultArea").innerText = result.join("\n");
-  document.getElementById("resultArea").classList.remove("hide");
-  document.getElementById("copyBtn").classList.remove("hide");
-  document.getElementById("downloadBtn").classList.remove("hide");
-  msg.className="green";msg.innerText="✅ 提取成功！";
-}
-
-async function saveJson(data){
-  return await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-    method: "PATCH",
-    headers: {
-      "Authorization": `token ${GIST_TOKEN}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      files: {
-        "data.json": {
-          content: JSON.stringify(data, null, 2)
+    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: "PATCH",
+      headers: {
+        "Authorization": `token ${GIST_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        files: {
+          "data.json": { content: JSON.stringify(data, null, 2) }
         }
-      }
-    })
-  });
+      })
+    });
+
+    await updateRemain();
+
+    document.getElementById("resultArea").innerText = result.join("\n");
+    document.getElementById("resultArea").classList.remove("hide");
+    document.getElementById("copyBtn").classList.remove("hide");
+    document.getElementById("downloadBtn").classList.remove("hide");
+    msg.className="green";
+    msg.innerText="✅ 提取成功！";
+  } catch (err) {
+    msg.className="red";
+    msg.innerText="❌ 提取失败，请重试";
+  }
 }
 
 function copyResult(){
@@ -143,9 +137,9 @@ function copyResult(){
 }
 
 function downloadTxt(){
-  let name = document.getElementById("name").value.trim() || "用户";
-  let b = new Blob([result.join("\n")], {type:"text/plain;charset=utf-8"});
-  let a = document.createElement("a");
+  const name = document.getElementById("name").value.trim() || "用户";
+  const b = new Blob([result.join("\n")], {type:"text/plain;charset=utf-8"});
+  const a = document.createElement("a");
   a.href=URL.createObjectURL(b);
   a.download=name+"_提取数据.txt";
   a.click();
