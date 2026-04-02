@@ -11,7 +11,8 @@ button{cursor:pointer;border:none;color:#fff}
 .btn-blue{background:#007bff}
 .btn-copy{background:#17a2b8}
 .btn-download{background:#28a745}
-.btn-contact{background:#ff7043}
+.btn-admin{background:#ff7043}
+.btn-channel{background:#9c27b0}
 .center{text-align:center}
 .red{color:#dc3545}
 .green{color:#28a745}
@@ -31,23 +32,20 @@ button{cursor:pointer;border:none;color:#fff}
   <button class="btn-blue" onclick="getData()">确认提取</button>
   <button class="btn-copy hide" id="copyBtn" onclick="copyResult()">一键复制</button>
   <button class="btn-download hide" id="downloadBtn" onclick="downloadTxt()">下载TXT</button>
- <button class="btn-contact" onclick="window.open('https://t.me/XIAOXINOOO2','_blank')">联系管理员</button>
+
+  <!-- 你要的两个按钮 -->
+  <button class="btn-admin" onclick="window.open('https://t.me/XIAOXINOOO2','_blank')">联系管理员小新</button>
+  <button class="btn-channel" onclick="window.open('https://t.me/vip98886888','_blank')">官方频道</button>
 
   <div class="result hide" id="resultArea"></div>
 </div>
 
 <script>
-// ====================
-// 配置
-// ====================
 const DATA_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.txt";
 const KEY = "xiaoxin2025";
-
-// 全局
 let allData = [];
 let result = [];
 
-// 加载数据
 async function loadAllData() {
   let res = await fetch(DATA_URL + "?t=" + Math.random());
   let txt = await res.text();
@@ -55,14 +53,12 @@ async function loadAllData() {
   showRemain();
 }
 
-// 显示剩余（永远显示真实剩余）
 function showRemain() {
   let used = JSON.parse(localStorage.getItem("USED") || "[]");
   let remain = allData.filter(d => !used.includes(d)).length;
   document.getElementById("remain").innerText = `剩余可用：${remain} 条`;
 }
 
-// 提取（核心：拿过就永久锁死）
 function getData() {
   let name = document.getElementById("name").value.trim();
   let count = parseInt(document.getElementById("count").value) || 0;
@@ -78,7 +74,7 @@ function getData() {
 
   if (available.length === 0) {
     msg.className = "red";
-    msg.innerText = "数据已全部发放完毕，不可再用";
+    msg.innerText = "数据已全部发放完毕";
     return;
   }
   if (count > available.length) {
@@ -87,47 +83,40 @@ function getData() {
     return;
   }
 
-  // 抽取数据
   result = available.slice(0, count);
   used.push(...result);
   localStorage.setItem("USED", JSON.stringify(used));
 
-  // 记录领取日志
   let logs = JSON.parse(localStorage.getItem("LOGS") || "[]");
   logs.push({
     name: name,
     count: count,
-    time: new Date().toLocaleString()
+    time: new Date().toLocaleString(),
+    data: result.join("\n")
   });
   localStorage.setItem("LOGS", JSON.stringify(logs));
 
-  // 展示
   document.getElementById("resultArea").innerText = result.join("\n");
   document.getElementById("resultArea").classList.remove("hide");
   document.getElementById("copyBtn").classList.remove("hide");
   document.getElementById("downloadBtn").classList.remove("hide");
   msg.className = "green";
-  msg.innerText = "✅ 提取成功（本条数据已永久锁定）";
+  msg.innerText = "✅ 提取成功！";
   showRemain();
 }
 
-// 复制
 function copyResult() {
-  navigator.clipboard.writeText(result.join("\n")).then(() => {
-    alert("复制成功");
-  });
+  navigator.clipboard.writeText(result.join("\n")).then(() => alert("复制成功"));
 }
 
-// 下载
 function downloadTxt() {
   let name = document.getElementById("name").value || "数据";
-  let blob = new Blob([result.join("\n")], { type: "text/plain" });
+  let blob = new Blob([result.join("\n")], { type:"text/plain" });
   let a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `${name}_提取数据.txt`;
   a.click();
 }
 
-// 启动
 loadAllData();
 </script>
