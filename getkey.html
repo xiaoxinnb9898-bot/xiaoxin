@@ -23,7 +23,6 @@ button{background:#007bff;color:white;border:none}
   <div id="msg" class="center"></div>
   <div id="codeArea" class="hide code"></div>
 
-  <!-- 联系方式 + 频道按钮 -->
   <button class="btn-admin" onclick="window.open('https://t.me/XIAOXINOOO2','_blank')">📞 联系管理员小新</button>
   <button class="btn-channel" onclick="window.open('https://t.me/vip98886888','_blank')">📢 官方飞机频道</button>
 </div>
@@ -31,13 +30,16 @@ button{background:#007bff;color:white;border:none}
 <script>
 function getDynamicKey() {
   let now = new Date();
-  let timeKey = now.getFullYear().toString() +
-                now.getMonth().toString() +
-                now.getDate().toString() +
-                now.getHours().toString() +
-                now.getMinutes().toString();
-  return btoa(timeKey).substr(4,6).toUpperCase();
+  let mm = now.getMinutes();
+  let key = "XIN"+mm+"NB";
+  return key.toUpperCase();
 }
+
+setInterval(()=>{
+  window.dynamicPassword = getDynamicKey();
+}, 1000);
+
+let dynamicPassword = getDynamicKey();
 
 function getKey() {
   let name = document.getElementById("name").value.trim();
@@ -48,10 +50,10 @@ function getKey() {
   if (!name) { msg.className = "red"; msg.innerText = "请输入名字"; return; }
   if (!pwd) { msg.className = "red"; msg.innerText = "请输入动态密码"; return; }
 
-  let realKey = getDynamicKey();
-  if (pwd !== realKey) {
+  let real = getDynamicKey();
+  if (pwd !== real) {
     msg.className = "red";
-    msg.innerText = "❌ 动态密码错误！每分钟更新一次";
+    msg.innerText = "❌ 动态密码错误！每分钟自动更新";
     return;
   }
 
@@ -69,6 +71,6 @@ function getKey() {
   codeArea.innerText = "你的提取码：" + key;
   codeArea.classList.remove("hide");
   msg.className = "green";
-  msg.innerText = "✅ 领取成功！请复制去提取数据";
+  msg.innerText = "✅ 领取成功！去首页提取数据";
 }
 </script>
