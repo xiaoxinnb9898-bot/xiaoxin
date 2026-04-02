@@ -3,7 +3,7 @@
 <title>数据提取</title>
 <style>
 *{box-sizing:border-box}
-body{font-family:微软雅黑;background:#f5f7fa;margin:0;padding:20px;transition:.3s}
+body{font-family:微软雅黑;background:#f5f7fa;margin:0;padding:20px}
 .box{max-width:520px;margin:40px auto;background:#fff;padding:30px;border-radius:20px;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
 h2{text-align:center}
 input,button{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd}
@@ -13,22 +13,12 @@ button{cursor:pointer;border:none;color:#fff}
 .btn-download{background:#28a745}
 .btn-admin{background:#ff7043}
 .btn-channel{background:#9c27b0}
-.btn-music{background:#607d8b}
 .center{text-align:center}
 .red{color:#dc3545}
 .green{color:#28a745}
 .hide{display:none}
 .result{padding:12px;background:#f8f9fa;border-radius:8px;margin:10px 0}
-.mode-btn{position:fixed;top:20px;right:20px;padding:10px 14px;border-radius:12px;background:#222;color:#fff}
-
-/* 暗黑模式 */
-body.dark{background:#121212;color:#eee}
-body.dark .box{background:#1e1e1e}
-body.dark input{background:#2d2d2d;color:#eee;border-color:#444}
-body.dark .result{background:#2d2d2d}
 </style>
-
-<button class="mode-btn" onclick="toggleDark()">暗黑模式</button>
 
 <div class="box">
   <h2>🔐 数据提取</h2>
@@ -36,7 +26,7 @@ body.dark .result{background:#2d2d2d}
 
   <input id="name" placeholder="你是谁？">
   <input id="count" type="number" min="1" placeholder="需要多少数据？">
-  <input id="key" placeholder="提取码">
+  <input id="key" placeholder="请输入提取码">
 
   <div id="msg" class="center"></div>
   <button class="btn-blue" onclick="getData()">确认提取</button>
@@ -45,123 +35,86 @@ body.dark .result{background:#2d2d2d}
 
   <button class="btn-admin" onclick="window.open('https://t.me/XIAOXINOOO2','_blank')">联系管理员小新</button>
   <button class="btn-channel" onclick="window.open('https://t.me/vip98886888','_blank')">官方频道</button>
-
-  <button class="btn-music" id="musicBtn" onclick="toggleMusic()">暂停音乐</button>
-
   <div class="result hide" id="resultArea"></div>
 </div>
 
-<!-- 背景音乐：只对你有感觉 DJ版 -->
 <audio id="bgMusic" loop autoplay>
-  <source src="https://music.163.com/song/media/outer/url?id=2114251567.mp3" type="audio/mpeg">
-  您的浏览器不支持音频播放
-
+<source src="https://music.163.com/song/media/outer/url?id=2114251567.mp3" type="audio/mpeg">
+</audio>
 
 <script>
 const DATA_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.txt";
-const KEY = "xiaoxin2025";
 let allData = [];
 let result = [];
-let musicPlaying = true;
-
-const bgMusic = document.getElementById('bgMusic');
-const musicBtn = document.getElementById('musicBtn');
-
-function toggleMusic() {
-  if (musicPlaying) {
-    bgMusic.pause();
-    musicBtn.innerText = "播放音乐";
-  } else {
-    bgMusic.play();
-    musicBtn.innerText = "暂停音乐";
-  }
-  musicPlaying = !musicPlaying;
-}
 
 window.onload = function(){
-  let userName = localStorage.getItem("userName") || "";
-  if(userName) document.getElementById("name").value = userName;
-  loadAllData();
+  let n = localStorage.getItem("userName");
+  if(n) document.getElementById("name").value = n;
+  loadData();
 }
 
-async function loadAllData() {
-  let res = await fetch(DATA_URL + "?t=" + Math.random());
-  let txt = await res.text();
-  allData = txt.split(/\n/).map(i => i.trim()).filter(i => i);
+async function loadData(){
+  let r = await fetch(DATA_URL+"?t="+Math.random());
+  let t = await r.text();
+  allData = t.split("\n").map(i=>i.trim()).filter(i=>i);
   showRemain();
 }
 
 function showRemain(){
-  let used = JSON.parse(localStorage.getItem("USED") || "[]");
-  let remain = allData.filter(d => !used.includes(d)).length;
-  document.getElementById("remain").innerText = `剩余可用：${remain} 条`;
+  let u = JSON.parse(localStorage.getItem("USED")||"[]");
+  let rem = allData.filter(d=>!u.includes(d)).length;
+  document.getElementById("remain").innerText = "剩余："+rem+" 条";
 }
 
-function getData() {
+function getData(){
   let name = document.getElementById("name").value.trim();
-  let count = parseInt(document.getElementById("count").value) || 0;
-  let key = document.getElementById("key").value.trim();
+  let cnt = parseInt(document.getElementById("count").value)||1;
+  let key = document.getElementById("key").value.trim().toUpperCase();
   let msg = document.getElementById("msg");
 
-  if(!name){msg.className="red";msg.innerText="请输入名字";return;}
-  if(count < 1){msg.className="red";msg.innerText="数量至少1条";return;}
-  if(!key){msg.className="red";msg.innerText="请输入提取码";return;}
+  if(!name){msg.className="red";msg.innerText="输入名字";return;}
+  if(cnt<1){msg.className="red";msg.innerText="至少1条";return;}
+  if(!key){msg.className="red";msg.innerText="输入提取码";return;}
 
-  localStorage.setItem("userName", name);
+  localStorage.setItem("userName",name);
 
-  if(key !== KEY){msg.className="red";msg.innerText="提取码错误";return;}
-
-  let used = JSON.parse(localStorage.getItem("USED") || "[]");
-  let available = allData.filter(d => !used.includes(d));
-
-  if(available.length === 0){
-    msg.className="red";
-    msg.innerText="数据已全部发放完毕";
-    return;
-  }
-  if(count > available.length){
-    msg.className="red";msg.innerText=`仅剩 ${available.length} 条`;return;
+  let keys = JSON.parse(localStorage.getItem("ALL_KEYS")||"[]");
+  let find = keys.find(k=>k.key===key && k.used===false);
+  if(!find){
+    msg.className="red";msg.innerText="提取码无效或已使用";return;
   }
 
-  result = available.slice(0, count);
+  find.used = true;
+  localStorage.setItem("ALL_KEYS",JSON.stringify(keys));
+
+  let used = JSON.parse(localStorage.getItem("USED")||"[]");
+  let ava = allData.filter(d=>!used.includes(d));
+  if(ava.length===0){msg.className="red";msg.innerText="已发完";return;}
+  if(cnt>ava.length){msg.className="red";msg.innerText="剩"+ava.length+"条";return;}
+
+  result = ava.slice(0,cnt);
   used.push(...result);
-  localStorage.setItem("USED", JSON.stringify(used));
+  localStorage.setItem("USED",JSON.stringify(used));
 
-  let logs = JSON.parse(localStorage.getItem("LOGS") || "[]");
-  logs.push({
-    name: name,
-    count: count,
-    time: new Date().toLocaleString(),
-    data: result.join("\n")
-  });
-  localStorage.setItem("LOGS", JSON.stringify(logs));
+  let logs = JSON.parse(localStorage.getItem("LOGS")||"[]");
+  logs.push({name,count:cnt,time:new Date().toLocaleString(),data:result.join("\n")});
+  localStorage.setItem("LOGS",JSON.stringify(logs));
 
   document.getElementById("resultArea").innerText = result.join("\n");
   document.getElementById("resultArea").classList.remove("hide");
   document.getElementById("copyBtn").classList.remove("hide");
   document.getElementById("downloadBtn").classList.remove("hide");
-  msg.className="green";
-  msg.innerText="✅ 提取成功！";
+  msg.className="green";msg.innerText="✅ 提取成功！";
   showRemain();
 }
 
-function copyResult(){
-  navigator.clipboard.writeText(result.join("\n")).then(()=>{
-    alert("复制成功！");
-  })
-}
-
+function copyResult(){navigator.clipboard.writeText(result.join("\n")).then(()=>alert("复制成功"))}
 function downloadTxt(){
-  let name = document.getElementById("name").value.trim() || "数据";
-  let blob = new Blob([result.join("\n")], {type:"text/plain;charset=utf-8"});
+  let name = document.getElementById("name").value.trim() || "用户";
+  let b = new Blob([result.join("\n")],{type:"text/plain"});
   let a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `${name}_提取数据.txt`;
+  a.href=URL.createObjectURL(b);
+  a.download=name+"_提取数据.txt";
   a.click();
-  URL.revokeObjectURL(a.href);
-}
-
-function toggleDark(){
-  document.body.classList.toggle("dark");
 }
 </script>
