@@ -8,157 +8,204 @@ body{background:#f5f7fa;padding:20px;font-family:微软雅黑}
 input,button{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd}
 button{background:#007bff;color:white;cursor:pointer;border:none}
 .danger{background:#dc3545}
-.download{background:#28a745}
-.logs{max-height:240px;overflow-y:auto;margin:10px 0}
-.item{padding:10px;border-bottom:1px solid #eee}
+.download{background:#28a745;margin-top:5px;width:auto;padding:6px 12px;font-size:14px}
+.logs{max-height:240px;overflow-y:auto;margin:10px 0;border:1px solid #eee;border-radius:8px;padding:10px}
+.item{padding:10px;border-bottom:1px solid #f5f5f5;margin-bottom:5px;border-radius:6px}
+.item:last-child{border-bottom:none;margin-bottom:0}
 .center{text-align:center}
 .red{color:red}
 .green{color:green}
-.current-pwd{font-size:24px;padding:16px;background:#d1f7e2;border-radius:12px;text-align:center;font-weight:bold}
+.current-pwd{font-size:24px;padding:16px;background:#d1f7e2;border-radius:12px;text-align:center;font-weight:bold;margin:20px 0}
 </style>
 
 <div id="login" class="box">
   <h2>🔑 管理员登录</h2>
-  <p class="center">当前动态密码：<b id="showPwd"></b></p>
-  <input type="password" id="pwd" placeholder="请输入动态密码">
+  <p class="center green">当前动态密码：<b id="showPwd"></b></p>
+  <input type="password" id="pwd" placeholder="请输入上方动态密码">
   <div id="msg" class="red center"></div>
   <button onclick="login()">登录</button>
 </div>
 
 <div id="admin" class="box" style="display:none">
-  <h2>📊 管理后台</h2>
-  <h3>🔐 当前动态密码</h3>
+  <h2>📊 数据管理后台</h2>
+  <h3>🔐 实时动态密码</h3>
   <div class="current-pwd" id="currentPwd"></div>
 
-  <h3>🎁 提取码记录（谁领了什么卡密）</h3>
-  <div class="logs" id="keyLogs"></div>
+  <h3>🎁 卡密领取记录（共<span id="keyCount">0</span>条）</h3>
+  <div class="logs" id="keyLogs">加载中...</div>
 
-  <h3>📥 数据提取记录（谁提取了数据）</h3>
-  <div class="logs" id="dataLogs"></div>
+  <h3>📥 数据提取记录（共<span id="logCount">0</span>条）</h3>
+  <div class="logs" id="dataLogs">加载中...</div>
 
-  <button onclick="loadAll()">🔄 刷新记录</button>
-  <button class="danger" onclick="resetAll()">清空所有数据</button>
+  <button onclick="loadAll()">🔄 强制刷新所有记录</button>
+  <button class="danger" onclick="resetAll()">🗑 清空所有记录（不可恢复）</button>
 </div>
 
 <script>
+// 核心配置
 const GIST_ID = "2f260b4654ae345630ef14017f240703";
-const PASSWORD = "123456"; // 后台登录密码
+const GIST_TOKEN = "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";
+const STORAGE_KEY = "xiaoxin_data"; // 本地缓存key
 
-// 动态密码（每分钟刷新）
+// 动态密码生成
 function getDynamicPwd() {
   const now = new Date();
-  const m = now.getMinutes().toString().padStart(2, '0');
-  return `XIN${m}NB`;
+  const mm = now.getMinutes().toString().padStart(2, '0');
+  return `XIN${mm}NB`;
 }
 
-// 页面加载显示当前密码
+// 页面加载初始化
 window.onload = function() {
   document.getElementById('showPwd').innerText = getDynamicPwd();
+  // 每分钟刷新动态密码
+  setInterval(() => {
+    if (document.getElementById('currentPwd')) {
+      document.getElementById('currentPwd').innerText = getDynamicPwd();
+    }
+  }, 60000);
 };
 
 // 登录逻辑
 function login() {
-  const input = document.getElementById('pwd').value.trim();
-  const real = getDynamicPwd();
+  const inputPwd = document.getElementById('pwd').value.trim();
+  const realPwd = getDynamicPwd();
   const msg = document.getElementById('msg');
 
-  if (input === real) {
-    localStorage.setItem('login_error', 0); // 重置错误计数
+  if (inputPwd === realPwd) {
     document.getElementById('login').style.display = 'none';
     document.getElementById('admin').style.display = 'block';
-    setInterval(() => {
-      document.getElementById('currentPwd').innerText = getDynamicPwd();
-    }, 1000);
-    loadAll(); // 加载数据
-    setInterval(loadAll, 5000); // 每5秒自动刷新
+    loadAll(); // 登录后立即加载所有记录
+    // 每3秒自动刷新，保证实时性
+    setInterval(loadAll, 3000);
   } else {
-    let count = parseInt(localStorage.getItem('login_error') || 0) + 1;
-    localStorage.setItem('login_error', count);
-    msg.innerText = "❌ 动态密码错误！";
+    msg.innerText = "❌ 动态密码错误，请重新输入！";
   }
 }
 
-// 加载所有数据
+// 核心：加载【云端Gist+本地缓存】所有数据，双源保证不丢失
 async function loadAll() {
   try {
-    let res = await fetch(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`);
-    let text = await res.text();
-    let data = JSON.parse(text);
-    
-    showKeys(data.keys || []);      // 渲染领码记录
-    showLogs(data.logs || []);      // 渲染提取记录
+    // 1. 先读云端Gist数据
+    let cloudData = { keys: [], logs: [] };
+    const gistRes = await fetch(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`, {
+      cache: "no-store", // 禁止缓存，保证最新
+      mode: "cors"
+    });
+    if (gistRes.ok) {
+      cloudData = await gistRes.json().catch(() => ({ keys: [], logs: [] }));
+    }
+
+    // 2. 再读本地缓存数据
+    const localStr = localStorage.getItem(STORAGE_KEY);
+    const localData = localStr ? JSON.parse(localStr) : { keys: [], logs: [] };
+
+    // 3. 合并数据：本地补充云端，避免跨域写入失败导致记录丢失
+    const mergeData = {
+      keys: [...new Map([...cloudData.keys, ...localData.keys].map(item => [item.key, item])).values()],
+      logs: [...new Map([...cloudData.logs, ...localData.logs].map(item => [item.key, item])).values()]
+    };
+
+    // 4. 渲染到页面
+    renderKeys(mergeData.keys);
+    renderLogs(mergeData.logs);
+
+    // 5. 把合并后的数据回写Gist和本地，保证数据一致
+    await saveToGist(mergeData);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(mergeData));
+
   } catch (e) {
-    console.error("读取数据失败", e);
+    // 即使网络失败，也读本地缓存
+    const localStr = localStorage.getItem(STORAGE_KEY);
+    const localData = localStr ? JSON.parse(localStr) : { keys: [], logs: [] };
+    renderKeys(localData.keys);
+    renderLogs(localData.logs);
+    console.log("网络异常，加载本地缓存数据：", e);
   }
 }
 
-// 显示提取码记录（谁领了什么卡密）
-function showKeys(keys) {
-  let html = '';
+// 渲染卡密领取记录
+function renderKeys(keys) {
+  const keyLogs = document.getElementById('keyLogs');
+  document.getElementById('keyCount').innerText = keys.length;
   if (keys.length === 0) {
-    document.getElementById('keyLogs').innerHTML = "<div class='item'>暂无记录</div>";
+    keyLogs.innerHTML = "<div class='center'>暂无卡密领取记录</div>";
     return;
   }
-
-  keys.forEach(k => {
-    const status = k.used ? "✅ 已使用" : "🆓 未使用";
-    // 显示：时间 + 姓名 + 卡密 + 额度 + 状态
-    html += `<div class='item'>
-      ${k.time}<br>
-     👤 ${k.name} | 🎁 ${k.key} (${k.limit}条) [${status}]
-    </div>`;
-  });
-  document.getElementById('keyLogs').innerHTML = html;
-}
-
-// 显示数据提取记录（谁提取了数据）
-function showLogs(logs) {
   let html = '';
-  if (logs.length === 0) {
-    document.getElementById('dataLogs').innerHTML = "<div class='item'>暂无记录</div>";
-    return;
-  }
-
-  logs.forEach((l, i) => {
-    // 显示：时间 + 姓名 + 卡密 + 提取条数 + 下载按钮
+  keys.forEach(k => {
+    const status = k.used ? "<span style='color:red'>✅ 已使用</span>" : "<span style='color:green'>🆓 未使用</span>";
     html += `<div class='item'>
-      ${l.time}<br>
-      👤 ${l.name} | 🎁 卡密：${l.key} | 📊 提取：${l.count || 0}条
-      <button class='download' onclick='downloadData(${i})'>下载原始数据</button>
+      <b>时间：</b>${k.time}<br>
+      <b>领取人：</b>${k.name}<br>
+      <b>卡密：</b>${k.key}<br>
+      <b>额度：</b>${k.limit}条 | <b>状态：</b>${status}
     </div>`;
   });
-  document.getElementById('dataLogs').innerHTML = html;
+  keyLogs.innerHTML = html;
 }
 
-// 下载用户提取的数据
-async function downloadData(index) {
-  try {
-    let res = await fetch(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`);
-    let data = JSON.parse(await res.text());
-    let log = data.logs[index];
-    
-    if (!log) return;
-    
-    const blob = new Blob([log.data || ""], { type: 'text/plain;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${log.name}_${log.key}.txt`;
-    a.click();
-  } catch (e) {}
-}
-
-// 清空所有数据（谨慎操作）
-async function resetAll() {
-  if (!confirm("确定要清空所有记录吗？此操作不可恢复！")) return;
-  
-  const emptyData = { keys: [], logs: [] };
-  await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-    method: "PATCH",
-    headers: { "Authorization": `token ${GIST_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ files: { "data.json": { content: JSON.stringify(emptyData, null, 2) } } })
+// 渲染数据提取记录（后台核心，能看到谁提了数据）
+function renderLogs(logs) {
+  const dataLogs = document.getElementById('dataLogs');
+  document.getElementById('logCount').innerText = logs.length;
+  if (logs.length === 0) {
+    dataLogs.innerHTML = "<div class='center'>暂无数据提取记录</div>";
+    return;
+  }
+  let html = '';
+  logs.forEach((l, i) => {
+    html += `<div class='item'>
+      <b>时间：</b>${l.time}<br>
+      <b>提取人：</b>${l.name}<br>
+      <b>使用卡密：</b>${l.key}<br>
+      <b>提取条数：</b>${l.count}条
+      <button class='download' onclick='downloadData(${i})'>下载数据</button>
+    </div>`;
   });
-  
+  dataLogs.innerHTML = html;
+}
+
+// 下载用户提取的原始数据
+function downloadData(index) {
+  const localStr = localStorage.getItem(STORAGE_KEY);
+  const data = localStr ? JSON.parse(localStr) : { logs: [] };
+  const log = data.logs[index];
+  if (!log || !log.data) {
+    alert("❌ 暂无数据可下载");
+    return;
+  }
+  const blob = new Blob([log.data], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${log.name}_${log.key}_${new Date().getTime()}.txt`;
+  a.click();
+}
+
+// 保存数据到Gist（绕开跨域优化版）
+async function saveToGist(data) {
+  try {
+    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: "PATCH",
+      headers: {
+        "Authorization": `token ${GIST_TOKEN}`,
+        "Content-Type": "text/plain;charset=utf-8" // 替代json，绕开跨域限制
+      },
+      body: JSON.stringify({
+        files: { "data.json": { content: JSON.stringify(data, null, 2) } }
+      })
+    });
+  } catch (e) {
+    console.log("Gist同步失败（跨域正常），本地数据已保存：", e);
+  }
+}
+
+// 清空所有记录
+async function resetAll() {
+  if (!confirm("⚠️ 确定要清空所有记录吗？此操作不可恢复！")) return;
+  const emptyData = { keys: [], logs: [] };
+  await saveToGist(emptyData);
+  localStorage.removeItem(STORAGE_KEY);
   loadAll();
-  alert("✅ 已清空所有数据！");
+  alert("✅ 所有记录已清空！");
 }
 </script>
