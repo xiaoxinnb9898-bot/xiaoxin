@@ -6,9 +6,10 @@
 body{background:#f5f7fa;font-family:微软雅黑;padding:20px}
 .box{max-width:700px;margin:40px auto;background:#fff;padding:30px;border-radius:20px}
 input,button{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd}
-button{background:#007bff;color:white;cursor:pointer}
-.danger{background:#dc3545}
-.download{background:#28a745}
+button{background:#007bff;color:white;cursor:pointer;border:none}
+.btn-refresh{background:#007bff !important;} /* 蓝色刷新按钮 */
+.btn-danger{background:#dc3545 !important;}
+.btn-download{background:#28a745 !important;}
 .logs{max-height:240px;overflow-y:auto;margin:10px 0}
 .item{padding:10px;border-bottom:1px solid #eee}
 .center{text-align:center}
@@ -27,8 +28,10 @@ button{background:#007bff;color:white;cursor:pointer}
 <div id="admin" class="box" style="display:none">
   <h2>📊 管理后台</h2>
   
-  <h3>🔐 当前动态密码（每分钟自动刷新）</h3>
-  <div class="current-pwd" id="currentPwd"></div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span>🔐 当前动态密码（每分钟自动刷新）：</span>
+    <div class="current-pwd" id="currentPwd"></div>
+  </div>
 
   <h3>🎁 提取码领取记录</h3>
   <div class="logs" id="keyLogs"></div>
@@ -36,8 +39,9 @@ button{background:#007bff;color:white;cursor:pointer}
   <h3>📥 数据提取记录</h3>
   <div class="logs" id="dataLogs"></div>
 
-  <button onclick="loadAll()">🔄 立即刷新所有记录</button>
-  <button class="danger" onclick="resetAll()">清空所有数据</button>
+  <!-- 修复这里：onclick 直接绑定 loadAll() -->
+  <button class="btn-refresh" onclick="loadAll()">🔄 立即刷新所有记录</button>
+  <button class="btn-danger" onclick="resetAll()">清空所有数据</button>
 </div>
 
 <script>
@@ -59,7 +63,9 @@ function login() {
     document.getElementById("login").style.display = "none";
     document.getElementById("admin").style.display = "block";
     
+    // 每1秒刷新一次密码
     setInterval(showPwd, 1000);
+    // 每3秒自动刷新记录（后台不需要手动点）
     setInterval(loadAll, 3000);
     loadAll();
   } else {
@@ -90,7 +96,7 @@ function showDataLogs() {
     html += `
     <div class="item">
       ${l.time}<br>${l.name} 领取 ${l.count} 条
-      <button class="download" onclick="down(${i})">下载数据</button>
+      <button class="btn-download" onclick="down(${i})">下载数据</button>
     </div>`;
   });
   document.getElementById("dataLogs").innerHTML = html || "<div class='item'>暂无记录</div>";
@@ -98,18 +104,18 @@ function showDataLogs() {
 
 function down(i) {
   let logs = JSON.parse(localStorage.getItem("LOGS"));
-  let b = new Blob([logs[i].data],{type:"text/plain"});
+  let b = new Blob([logs[i].data],{type:"text/plain;charset=utf-8"});
   let a = document.createElement("a");
   a.href=URL.createObjectURL(b);
-  a.download=logs[i].name+"_备份.txt";
+  a.download=logs[i].name+"_备份数据.txt";
   a.click();
 }
 
 function resetAll() {
-  if(confirm("确定清空所有记录？")){
+  if(confirm("确定清空所有记录？此操作不可恢复！")){
     localStorage.clear();
     loadAll();
-    alert("✅ 已清空");
+    alert("✅ 已清空所有数据");
   }
 }
 </script>
