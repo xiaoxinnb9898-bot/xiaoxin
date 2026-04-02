@@ -33,88 +33,113 @@ button{cursor:pointer;border:none;color:#fff}
   <button class="btn-copy hide" id="copyBtn" onclick="copyResult()">一键复制</button>
   <button class="btn-download hide" id="downloadBtn" onclick="downloadTxt()">下载TXT</button>
 
-  <button class="btn-admin" onclick="window.open('https://t.me/XIAOXINOOO2','_blank')">联系管理员小新</button>
-  <button class="btn-channel" onclick="window.open('https://t.me/vip98886888','_blank')">官方频道</button>
+  <button class="btn-admin" onclick="window.open('https://t.me/XIAOXINOOO2','_blank')">📞 联系管理员小新</button>
+  <button class="btn-channel" onclick="window.open('https://t.me/vip98886888','_blank')">📢 官方飞机频道</button>
   <div class="result hide" id="resultArea"></div>
 </div>
 
 <audio id="bgMusic" loop autoplay>
 <source src="https://music.163.com/song/media/outer/url?id=2114251567.mp3" type="audio/mpeg">
-</audio>
+
 
 <script>
 const DATA_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.txt";
+const JSON_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.json";
 let allData = [];
 let result = [];
 
-window.onload = function(){
-  let n = localStorage.getItem("userName");
-  if(n) document.getElementById("name").value = n;
-  loadData();
-}
-
+// 加载数据
 async function loadData(){
   let r = await fetch(DATA_URL+"?t="+Math.random());
   let t = await r.text();
   allData = t.split("\n").map(i=>i.trim()).filter(i=>i);
-  showRemain();
+  await updateRemain();
 }
 
-function showRemain(){
-  let u = JSON.parse(localStorage.getItem("USED")||"[]");
-  let rem = allData.filter(d=>!u.includes(d)).length;
-  document.getElementById("remain").innerText = "剩余："+rem+" 条";
+// 更新剩余数量
+async function updateRemain(){
+  let res = await fetch(JSON_URL+"?t="+Math.random());
+  let data = await res.json();
+  let used = data.logs.flatMap(l=>l.data.split("\n").filter(i=>i));
+  let remain = allData.filter(d=>!used.includes(d)).length;
+  document.getElementById("remain").innerText = `剩余可用：${remain} 条`;
 }
 
-function getData(){
+// 提取数据
+async function getData(){
   let name = document.getElementById("name").value.trim();
   let cnt = parseInt(document.getElementById("count").value)||1;
   let key = document.getElementById("key").value.trim().toUpperCase();
   let msg = document.getElementById("msg");
 
-  if(!name){msg.className="red";msg.innerText="输入名字";return;}
+  if(!name){msg.className="red";msg.innerText="请输入名字";return;}
   if(cnt<1){msg.className="red";msg.innerText="至少1条";return;}
-  if(!key){msg.className="red";msg.innerText="输入提取码";return;}
+  if(!key){msg.className="red";msg.innerText="请输入提取码";return;}
 
-  localStorage.setItem("userName",name);
-
-  let keys = JSON.parse(localStorage.getItem("ALL_KEYS")||"[]");
-  let find = keys.find(k=>k.key===key && k.used===false);
-  if(!find){
+  // 验证提取码
+  let res = await fetch(JSON_URL+"?t="+Math.random());
+  let data = await res.json();
+  let findKey = data.keys.find(k=>k.key===key && !k.used);
+  if(!findKey){
     msg.className="red";msg.innerText="提取码无效或已使用";return;
   }
 
-  find.used = true;
-  localStorage.setItem("ALL_KEYS",JSON.stringify(keys));
-
-  let used = JSON.parse(localStorage.getItem("USED")||"[]");
+  // 计算可用数据
+  let used = data.logs.flatMap(l=>l.data.split("\n").filter(i=>i));
   let ava = allData.filter(d=>!used.includes(d));
-  if(ava.length===0){msg.className="red";msg.innerText="已发完";return;}
-  if(cnt>ava.length){msg.className="red";msg.innerText="剩"+ava.length+"条";return;}
+  if(ava.length===0){msg.className="red";msg.innerText="数据已发完";return;}
+  if(cnt>ava.length){msg.className="red";msg.innerText=`仅剩 ${ava.length} 条`;return;}
 
+  // 提取数据
   result = ava.slice(0,cnt);
-  used.push(...result);
-  localStorage.setItem("USED",JSON.stringify(used));
+  findKey.used = true;
+  data.logs.push({
+    name: name,
+    count: cnt,
+    time: new Date().toLocaleString(),
+    data: result.join("\n")
+  });
 
-  let logs = JSON.parse(localStorage.getItem("LOGS")||"[]");
-  logs.push({name,count:cnt,time:new Date().toLocaleString(),data:result.join("\n")});
-  localStorage.setItem("LOGS",JSON.stringify(logs));
+  // 写回JSON（用gist代理解决GitHub Pages写权限问题）
+  await saveJson(data);
+  await updateRemain();
 
   document.getElementById("resultArea").innerText = result.join("\n");
   document.getElementById("resultArea").classList.remove("hide");
   document.getElementById("copyBtn").classList.remove("hide");
   document.getElementById("downloadBtn").classList.remove("hide");
   msg.className="green";msg.innerText="✅ 提取成功！";
-  showRemain();
+}
+
+// 保存JSON（用免费gist代理，零成本）
+async function saveJson(data){
+  const GIST_ID = "YOUR_GIST_ID"; // 下一步我教你填
+  const GIST_TOKEN = "YOUR_GIST_TOKEN";
+  await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+    method: "PATCH",
+    headers: {
+      "Authorization": `token ${GIST_TOKEN}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      files: {
+        "data.json": {
+          content: JSON.stringify(data, null, 2)
+        }
+      }
+    })
+  });
 }
 
 function copyResult(){navigator.clipboard.writeText(result.join("\n")).then(()=>alert("复制成功"))}
 function downloadTxt(){
   let name = document.getElementById("name").value.trim() || "用户";
-  let b = new Blob([result.join("\n")],{type:"text/plain"});
+  let b = new Blob([result.join("\n")],{type:"text/plain;charset=utf-8"});
   let a = document.createElement("a");
   a.href=URL.createObjectURL(b);
   a.download=name+"_提取数据.txt";
   a.click();
 }
+
+window.onload = ()=>loadData();
 </script>
