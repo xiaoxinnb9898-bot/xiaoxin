@@ -15,11 +15,13 @@ button{background:#007bff;color:white;cursor:pointer;border:none}
 .red{color:red}
 .green{color:green}
 .current-pwd{font-size:24px;padding:16px;background:#d1f7e2;border-radius:12px;text-align:center;font-weight:bold}
+.lock{color:#ff4444;font-weight:bold;font-size:18px}
 </style>
 
 <div id="login" class="box">
   <h2>🔑 管理员登录</h2>
-  <input type="password" id="pwd" placeholder="密码：123456">
+  <p class="center">当前动态密码：<b id="showPwd"></b></p>
+  <input type="password" id="pwd" placeholder="请输入动态密码">
   <div id="msg" class="red center"></div>
   <button onclick="login()">登录</button>
 </div>
@@ -40,45 +42,113 @@ button{background:#007bff;color:white;cursor:pointer;border:none}
 </div>
 
 <script>
-const GIST_ID = "2f260b4654ae345630ef14017f240703";
+const GIST_ID = "2f260b4654ae345630ef140703";
 const GIST_TOKEN = "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";
-const PASSWORD = "123456";
 
-// 直接读取 Gist，不使用任何代理！
+// ==============================================
+// 安全设置：3次错误锁定IP
+// ==============================================
+const MAX_ERROR = 3;
+let errorCount = parseInt(localStorage.getItem('login_error')) || 0;
+let isLocked = localStorage.getItem('is_locked') === 'true';
+
+// 获取真实IP（简单版）
+async function getIP() {
+  try {
+    let res = await fetch('https://api.ipify.org?format=json');
+    let data = await res.json();
+    return data.ip;
+  } catch (e) {
+    return 'unknown';
+  }
+}
+
+// 动态密码
+function getDynamicKey() {
+  const now = new Date();
+  const mm = now.getMinutes().toString().padStart(2, '0');
+  return `XIN${mm}NB`;
+}
+
+// 页面加载判断是否锁定
+window.onload = async function() {
+  document.getElementById('showPwd').innerText = getDynamicKey();
+  
+  if (isLocked) {
+    let ip = await getIP();
+    document.getElementById('msg').innerText = `🔒 你的IP(${ip})已锁定，连续错误超过${MAX_ERROR}次`;
+    document.getElementById('msg').className = 'center lock';
+    document.querySelector('button').disabled = true;
+    return;
+  }
+}
+
+// 登录逻辑
+async function login() {
+  if (isLocked) return;
+
+  let input = document.getElementById('pwd').value.trim();
+  let real = getDynamicKey();
+  let msg = document.getElementById('msg');
+
+  if (input === real) {
+    // 登录成功，清空错误
+    localStorage.setItem('login_error', 0);
+    document.getElementById('login').style.display = 'none';
+    document.getElementById('admin').style.display = 'block';
+    setInterval(() => {
+      document.getElementById('currentPwd').innerText = getDynamicKey();
+    }, 1000);
+    loadAll();
+    setInterval(loadAll, 5000);
+  } else {
+    errorCount++;
+    localStorage.setItem('login_error', errorCount);
+
+    if (errorCount >= MAX_ERROR) {
+      localStorage.setItem('is_locked', 'true');
+      let ip = await getIP();
+      msg.innerText = `🔒 你的IP(${ip})已被锁定！`;
+      msg.className = 'center lock';
+      document.querySelector('button').disabled = true;
+    } else {
+      msg.innerText = `❌ 密码错误，剩余 ${MAX_ERROR - errorCount} 次机会`;
+    }
+  }
+}
+
+// ==============================================
+// 后台数据加载
+// ==============================================
 async function loadAll() {
   try {
     let res = await fetch(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`);
     let text = await res.text();
     let data = JSON.parse(text);
-
     showKeys(data.keys || []);
     showLogs(data.logs || []);
-  } catch (e) {
-    console.error("读取失败", e);
-    document.getElementById("keyLogs").innerHTML = "<div class='item'>⌛ 正在加载记录...</div>";
-    document.getElementById("dataLogs").innerHTML = "<div class='item'>⌛ 正在加载记录...</div>";
-  }
+  } catch (e) {}
 }
 
 function showKeys(keys) {
-  let html = "";
+  let html = '';
   keys.forEach(k => {
-    let status = k.used ? "✅ 已使用" : "🆓 未使用";
+    let status = k.used ? '✅ 已使用' : '🆓 未使用';
     html += `<div class='item'>${k.time}<br>${k.name} → ${k.key} (${status})</div>`;
   });
-  document.getElementById("keyLogs").innerHTML = html || "<div class='item'>暂无记录</div>";
+  document.getElementById('keyLogs').innerHTML = html || '<div class="item">暂无记录</div>';
 }
 
 function showLogs(logs) {
-  let html = "";
+  let html = '';
   logs.forEach((l, i) => {
     html += `
     <div class='item'>
-      ${l.time}<br>${l.name} 领取 ${l.count} 条
+      ${l.time}<br>${l.name} | 卡密：${l.key || ''} | ${l.limit || l.count || 0}条
       <button class='download' onclick='download(${i})'>下载</button>
     </div>`;
   });
-  document.getElementById("dataLogs").innerHTML = html || "<div class='item'>暂无记录</div>";
+  document.getElementById('dataLogs').innerHTML = html || '<div class="item">暂无记录</div>';
 }
 
 async function download(i) {
@@ -86,49 +156,27 @@ async function download(i) {
   let text = await res.text();
   let data = JSON.parse(text);
   let log = data.logs[i];
-  let blob = new Blob([log.data], { type: "text/plain;charset=utf-8" });
-  let a = document.createElement("a");
+  let blob = new Blob([log.data], { type: 'text/plain;charset=utf-8' });
+  let a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = log.name + ".txt";
+  a.download = log.name + '.txt';
   a.click();
 }
 
-function getDynamicKey() {
-  const now = new Date();
-  const mm = now.getMinutes().toString().padStart(2, '0');
-  return `XIN${mm}NB`;
-}
-
-function showPwd() {
-  document.getElementById("currentPwd").innerText = getDynamicKey();
-}
-
-function login() {
-  if (document.getElementById("pwd").value === PASSWORD) {
-    document.getElementById("login").style.display = "none";
-    document.getElementById("admin").style.display = "block";
-    setInterval(showPwd, 1000);
-    loadAll();
-    setInterval(loadAll, 3000);
-  } else {
-    document.getElementById("msg").innerText = "❌ 密码错误";
-  }
-}
-
 async function resetAll() {
-  if (!confirm("确定清空所有记录？不可恢复！")) return;
+  if (!confirm('确定清空所有记录？不可恢复！')) return;
   let empty = { keys: [], logs: [] };
   await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-    method: "PATCH",
+    method: 'PATCH',
     headers: {
-      "Authorization": `token ${GIST_TOKEN}`,
-      "Content-Type": "application/json"
+      'Authorization': 'token ' + GIST_TOKEN,
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      files: { "data.json": { content: JSON.stringify(empty, null, 2) } }
+      files: { 'data.json': { content: JSON.stringify(empty, null, 2) } }
     })
   });
   loadAll();
-  alert("✅ 已清空");
+  alert('✅ 已清空');
 }
 </script>
