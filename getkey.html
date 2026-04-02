@@ -58,7 +58,7 @@ async function getKey() {
 
   const realPwd = getDynamicKey();
   if (pwd !== realPwd) {
-    msg.className = "red"; msg.innerText = "❌ 动态密码错误！当前正确密码：" + realPwd; return;
+    msg.className = "red"; msg.innerText = `❌ 动态密码错误！当前正确密码：${realPwd}`; return;
   }
 
   const key = generateKey();
@@ -96,7 +96,7 @@ async function getKey() {
     msg.innerText = "✅ 领取成功！复制去提取数据";
   } catch (err) {
     msg.className = "red";
-    msg.innerText = "❌ 提取码生成失败，请检查Token";
+    msg.innerText = `❌ 提取码生成失败：${err.message}`;
     console.error(err);
   }
 }
