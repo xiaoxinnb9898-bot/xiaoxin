@@ -42,14 +42,14 @@ button{background:#007bff;color:white;cursor:pointer;border:none}
 
 <script>
 const GIST_ID = "2f260b4654ae345630ef14017f240703";
-const GIST_TOKEN = "2f260b4654ae345630ef14017f240703";
+const GIST_TOKEN = "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";
 const PASSWORD = "123456";
 const JSON_URL = `https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`;
 
 function getDynamicKey() {
-  let now = new Date();
-  let mm = now.getMinutes();
-  return `XIN${mm}NB`.toUpperCase();
+  const now = new Date();
+  const mm = now.getMinutes().toString().padStart(2, '0');
+  return `XIN${mm}NB`;
 }
 
 function showPwd() {
@@ -64,22 +64,24 @@ function login() {
     setInterval(loadAll, 3000);
     loadAll();
   } else {
-    document.getElementById("msg").innerText = "密码错误";
+    document.getElementById("msg").innerText = "❌ 密码错误";
   }
 }
 
 async function loadAll() {
   showPwd();
-  let res = await fetch(JSON_URL, { cache: "no-store" });
-  let data = await res.json();
-  showKeys(data.keys || []);
-  showDataLogs(data.logs || []);
+  try {
+    const res = await fetch(JSON_URL, { cache: "no-store" });
+    const data = await res.json();
+    showKeys(data.keys || []);
+    showDataLogs(data.logs || []);
+  } catch (err) {}
 }
 
 function showKeys(keys) {
   let html = "";
   keys.forEach(k => {
-    let status = k.used ? "✅ 已使用" : "🆓 未使用";
+    const status = k.used ? "✅ 已使用" : "🆓 未使用";
     html += `<div class="item">${k.time}<br>${k.name} → ${k.key} (${status})</div>`;
   });
   document.getElementById("keyLogs").innerHTML = html || "<div class='item'>暂无记录</div>";
@@ -98,13 +100,13 @@ function showDataLogs(logs) {
 }
 
 function downloadData(index) {
-  fetch(JSON_URL + "?t=" + Date.now(), { cache: "no-store" })
+  fetch(JSON_URL, { cache: "no-store" })
     .then(res => res.json())
     .then(data => {
-      let log = (data.logs || [])[index];
+      const log = (data.logs || [])[index];
       if (!log) return;
-      let b = new Blob([log.data || ""], { type: "text/plain;charset=utf-8" });
-      let a = document.createElement("a");
+      const b = new Blob([log.data || ""], { type: "text/plain;charset=utf-8" });
+      const a = document.createElement("a");
       a.href = URL.createObjectURL(b);
       a.download = `${log.name}_${log.time.replace(/[\/:\s]/g, "_")}.txt`;
       a.click();
@@ -113,14 +115,8 @@ function downloadData(index) {
 
 async function resetAll() {
   if (!confirm("确定清空所有记录？不可恢复！")) return;
-  let data = { keys: [], logs: [], dynamicPwd: "" };
-  await saveJson(data);
-  loadAll();
-  alert("✅ 已清空");
-}
-
-async function saveJson(data) {
-  return await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+  const data = { keys: [], logs: [] };
+  await fetch(`https://api.github.com/gists/${GIST_ID}`, {
     method: "PATCH",
     headers: {
       "Authorization": `token ${GIST_TOKEN}`,
@@ -132,5 +128,7 @@ async function saveJson(data) {
       }
     })
   });
+  loadAll();
+  alert("✅ 已清空所有数据");
 }
 </script>
