@@ -11,8 +11,6 @@ button{cursor:pointer;border:none;color:#fff}
 .btn-blue{background:#007bff}
 .btn-copy{background:#17a2b8}
 .btn-download{background:#28a745}
-.btn-admin{background:#ff7043}
-.btn-channel{background:#9c27b0}
 .center{text-align:center}
 .red{color:#dc3545}
 .green{color:#28a745}
@@ -24,17 +22,14 @@ button{cursor:pointer;border:none;color:#fff}
   <h2>🔐 数据提取</h2>
   <div class="green center" id="remain"></div>
 
-  <input id="name" placeholder="你是谁？">
-  <input id="count" type="number" min="1" placeholder="需要多少数据？" value="120">
-  <input id="key" placeholder="请输入提取码">
+  <input id="name" placeholder="请输入你的名字">
+  <input id="key" placeholder="请输入提取卡密">
 
   <div id="msg" class="center"></div>
   <button class="btn-blue" onclick="getData()">确认提取</button>
   <button class="btn-copy hide" id="copyBtn" onclick="copyResult()">一键复制</button>
   <button class="btn-download hide" id="downloadBtn" onclick="downloadTxt()">下载TXT</button>
 
-  <button class="btn-admin" onclick="window.open('https://t.me/XIAOXINOOO2','_blank')">📞 联系管理员小新</button>
-  <button class="btn-channel" onclick="window.open('https://t.me/vip98886888','_blank')">📢 官方飞机频道</button>
   <div class="result hide" id="resultArea"></div>
 </div>
 
@@ -42,26 +37,48 @@ button{cursor:pointer;border:none;color:#fff}
 const GIST_ID = "2f260b4654ae345630ef14017f240703";
 const GIST_TOKEN = "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";
 const DATA_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.txt";
-const PROXY = "https://api.allorigins.win/get?url=";
-const RAW_URL = encodeURIComponent(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json`);
-const JSON_URL = PROXY + RAW_URL;
+const JSON_URL = `https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`;
 const API_URL = `https://api.github.com/gists/${GIST_ID}`;
+
+// 额度卡密配置
+const KAMI_LIST = {
+  "KAMI10": 10,
+  "KAMI50": 50,
+  "KAMI100": 100,
+  "KAMI300": 300,
+  "KAMI500": 500,
+  "KAMI1000": 1000
+};
 
 let allData = [];
 let result = [];
+let usedKeyList = [];
 
 async function loadData() {
-  const r = await fetch(DATA_URL + "?t=" + Date.now());
-  const t = await r.text();
-  allData = t.split("\n").map(i => i.trim()).filter(i => i);
-  updateRemain();
+  try {
+    const r = await fetch(DATA_URL + "?t=" + Date.now(), { cache: "no-store" });
+    const t = await r.text();
+    allData = t.split("\n").map(i => i.trim()).filter(i => i);
+  } catch (e) {}
+  loadUsedKeys();
 }
 
-async function updateRemain() {
+// 加载已经使用过的卡密
+async function loadUsedKeys() {
   try {
-    let res = await fetch(JSON_URL + "&t=" + Date.now());
-    let json = await res.json();
-    let data = JSON.parse(json.contents);
+    let res = await fetch(JSON_URL);
+    let data = await res.json();
+    const logs = data.logs || [];
+    usedKeyList = logs.map(item => item.key);
+    updateRemain(data);
+  } catch (e) {
+    updateRemain({ logs: [] });
+  }
+}
+
+// 剩余数据条数
+function updateRemain(data) {
+  try {
     const used = data.logs ? data.logs.flatMap(l => (l.data || "").split("\n").filter(i => i)) : [];
     const remain = allData.filter(d => !used.includes(d)).length;
     document.getElementById("remain").innerText = `剩余可用：${remain} 条`;
@@ -70,33 +87,52 @@ async function updateRemain() {
 
 async function getData() {
   const name = document.getElementById("name").value.trim();
-  const cnt = parseInt(document.getElementById("count").value) || 1;
-  const key = document.getElementById("key").value.trim().toUpperCase();
+  const key = document.getElementById("key").value.trim();
   const msg = document.getElementById("msg");
 
   if (!name) { msg.className = "red"; msg.innerText = "❌ 请输入名字"; return; }
-  if (cnt < 1) { msg.className = "red"; msg.innerText = "❌ 至少1条"; return; }
-  if (!key) { msg.className = "red"; msg.innerText = "❌ 请输入提取码"; return; }
+  if (!key) { msg.className = "red"; msg.innerText = "❌ 请输入提取卡密"; return; }
+
+  // 检查卡密是否存在
+  if (!KAMI_LIST.hasOwnProperty(key)) {
+    msg.className = "red"; msg.innerText = "❌ 无效的提取卡密"; return;
+  }
+
+  // 检查是否已使用
+  if (usedKeyList.includes(key)) {
+    msg.className = "red"; msg.innerText = "❌ 该卡密已被使用"; return;
+  }
+
+  const limit = KAMI_LIST[key];
 
   try {
-    let res = await fetch(JSON_URL + "&t=" + Date.now());
-    let json = await res.json();
-    let data = JSON.parse(json.contents);
-    data.keys = data.keys || [];
-
-    const find = data.keys.find(k => k.key === key && !k.used);
-    if (!find) { msg.className = "red"; msg.innerText = "❌ 提取码无效/已使用"; return; }
-
-    const used = data.logs ? data.logs.flatMap(l => (l.data || "").split("\n").filter(i => i)) : [];
-    const ava = allData.filter(d => !used.includes(d));
-    if (ava.length === 0) { msg.className = "red"; msg.innerText = "❌ 已发完"; return; }
-    if (cnt > ava.length) { msg.className = "red"; msg.innerText = `❌ 仅剩 ${ava.length} 条`; return; }
-
-    result = ava.slice(0, cnt);
-    find.used = true;
+    let res = await fetch(JSON_URL);
+    let data = await res.json();
     data.logs = data.logs || [];
-    data.logs.push({ name, count: cnt, time: new Date().toLocaleString(), data: result.join("\n") });
 
+    const used = data.logs.flatMap(l => (l.data || "").split("\n").filter(i => i)) || [];
+    const ava = allData.filter(d => !used.includes(d));
+
+    if (ava.length === 0) {
+      msg.className = "red"; msg.innerText = "❌ 数据已全部发完！"; return;
+    }
+    if (limit > ava.length) {
+      msg.className = "red"; msg.innerText = `❌ 剩余数据不足${limit}条`; return;
+    }
+
+    // 按卡密额度提取
+    result = ava.slice(0, limit);
+
+    // 记录使用日志
+    data.logs.push({
+      name: name,
+      key: key,
+      limit: limit,
+      time: new Date().toLocaleString(),
+      data: result.join("\n")
+    });
+
+    // 同步到 Gist
     await fetch(API_URL, {
       method: "PATCH",
       headers: {
@@ -108,16 +144,18 @@ async function getData() {
       })
     });
 
-    await updateRemain();
+    // 显示结果
     document.getElementById("resultArea").innerText = result.join("\n");
     document.getElementById("resultArea").classList.remove("hide");
     document.getElementById("copyBtn").classList.remove("hide");
     document.getElementById("downloadBtn").classList.remove("hide");
     msg.className = "green";
-    msg.innerText = "✅ 提取成功！";
+    msg.innerText = `✅ 提取成功！本次提取 ${limit} 条`;
+
+    usedKeyList.push(key);
   } catch (err) {
     msg.className = "red";
-    msg.innerText = "❌ 操作失败";
+    msg.innerText = "❌ 提取失败，请稍后重试";
     console.error(err);
   }
 }
@@ -131,7 +169,7 @@ function downloadTxt() {
   const blob = new Blob([result.join("\n")], { type: "text/plain;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = name + "_数据.txt";
+  a.download = `${name}_提取数据.txt`;
   a.click();
 }
 
