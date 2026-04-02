@@ -3,7 +3,7 @@
 <title>管理后台</title>
 <style>
 *{box-sizing:border-box}
-body{background:#f5f7fa;font-family:微软雅黑;padding:20px}
+body{background:#f5f7fa;padding:20px;font-family:微软雅黑}
 .box{max-width:700px;margin:40px auto;background:#fff;padding:30px;border-radius:20px}
 input,button{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd}
 button{background:#007bff;color:white;cursor:pointer;border:none}
@@ -14,7 +14,7 @@ button{background:#007bff;color:white;cursor:pointer;border:none}
 .center{text-align:center}
 .red{color:red}
 .green{color:green}
-.current-pwd{font-size:24px;padding:16px;background:#d1f7e2;border-radius:12px;text-align:center;font-weight:bold;color:#000}
+.current-pwd{font-size:24px;padding:16px;background:#d1f7e2;border-radius:12px;text-align:center;font-weight:bold}
 </style>
 
 <div id="login" class="box">
@@ -35,7 +35,7 @@ button{background:#007bff;color:white;cursor:pointer;border:none}
   <h3>📥 数据提取记录</h3>
   <div class="logs" id="dataLogs"></div>
 
-  <button onclick="loadAll()">🔄 刷新</button>
+  <button onclick="loadAll()">🔄 刷新记录</button>
   <button class="danger" onclick="resetAll()">清空所有数据</button>
 </div>
 
@@ -43,10 +43,55 @@ button{background:#007bff;color:white;cursor:pointer;border:none}
 const GIST_ID = "2f260b4654ae345630ef14017f240703";
 const GIST_TOKEN = "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";
 const PASSWORD = "123456";
-const PROXY = "https://api.allorigins.win/get?url=";
-const RAW_URL = encodeURIComponent(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json`);
-const JSON_URL = PROXY + RAW_URL;
-const API_URL = `https://api.github.com/gists/${GIST_ID}`;
+
+// 直接读取 Gist，不使用任何代理！
+async function loadAll() {
+  try {
+    let res = await fetch(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`);
+    let text = await res.text();
+    let data = JSON.parse(text);
+
+    showKeys(data.keys || []);
+    showLogs(data.logs || []);
+  } catch (e) {
+    console.error("读取失败", e);
+    document.getElementById("keyLogs").innerHTML = "<div class='item'>⌛ 正在加载记录...</div>";
+    document.getElementById("dataLogs").innerHTML = "<div class='item'>⌛ 正在加载记录...</div>";
+  }
+}
+
+function showKeys(keys) {
+  let html = "";
+  keys.forEach(k => {
+    let status = k.used ? "✅ 已使用" : "🆓 未使用";
+    html += `<div class='item'>${k.time}<br>${k.name} → ${k.key} (${status})</div>`;
+  });
+  document.getElementById("keyLogs").innerHTML = html || "<div class='item'>暂无记录</div>";
+}
+
+function showLogs(logs) {
+  let html = "";
+  logs.forEach((l, i) => {
+    html += `
+    <div class='item'>
+      ${l.time}<br>${l.name} 领取 ${l.count} 条
+      <button class='download' onclick='download(${i})'>下载</button>
+    </div>`;
+  });
+  document.getElementById("dataLogs").innerHTML = html || "<div class='item'>暂无记录</div>";
+}
+
+async function download(i) {
+  let res = await fetch(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`);
+  let text = await res.text();
+  let data = JSON.parse(text);
+  let log = data.logs[i];
+  let blob = new Blob([log.data], { type: "text/plain;charset=utf-8" });
+  let a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = log.name + ".txt";
+  a.click();
+}
 
 function getDynamicKey() {
   const now = new Date();
@@ -63,63 +108,17 @@ function login() {
     document.getElementById("login").style.display = "none";
     document.getElementById("admin").style.display = "block";
     setInterval(showPwd, 1000);
-    setInterval(loadAll, 3000);
     loadAll();
+    setInterval(loadAll, 3000);
   } else {
     document.getElementById("msg").innerText = "❌ 密码错误";
   }
 }
 
-async function loadAll() {
-  showPwd();
-  try {
-    let res = await fetch(JSON_URL + "&t=" + Date.now());
-    let json = await res.json();
-    let data = JSON.parse(json.contents);
-    showKeys(data.keys || []);
-    showLogs(data.logs || []);
-  } catch (e) {}
-}
-
-function showKeys(keys) {
-  let html = "";
-  keys.forEach(k => {
-    const s = k.used ? "✅ 已使用" : "🆓 未使用";
-    html += `<div class="item">${k.time}<br>${k.name} → ${k.key} (${s})</div>`;
-  });
-  document.getElementById("keyLogs").innerHTML = html || "<div class='item'>暂无记录</div>";
-}
-
-function showLogs(logs) {
-  let html = "";
-  logs.forEach((l, i) => {
-    html += `
-    <div class="item">
-      ${l.time}<br>${l.name} 领取 ${l.count} 条
-      <button class="download" onclick="download(${i})">下载</button>
-    </div>`;
-  });
-  document.getElementById("dataLogs").innerHTML = html || "<div class='item'>暂无记录</div>";
-}
-
-function download(i) {
-  fetch(JSON_URL + "&t=" + Date.now())
-    .then(r => r.json())
-    .then(j => {
-      const data = JSON.parse(j.contents);
-      const log = data.logs[i];
-      const blob = new Blob([log.data], { type: "text/plain;charset=utf-8" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `${log.name}_${log.time}.txt`;
-      a.click();
-    });
-}
-
 async function resetAll() {
-  if (!confirm("确定清空？不可恢复！")) return;
-  const empty = { keys: [], logs: [] };
-  await fetch(API_URL, {
+  if (!confirm("确定清空所有记录？不可恢复！")) return;
+  let empty = { keys: [], logs: [] };
+  await fetch(`https://api.github.com/gists/${GIST_ID}`, {
     method: "PATCH",
     headers: {
       "Authorization": `token ${GIST_TOKEN}`,
