@@ -29,10 +29,9 @@ button{background:#007bff;color:white;border:none;cursor:pointer}
 
 <script>
 const GIST_ID = "2f260b4654ae345630ef14017f240703";
-const GIST_TOKEN = "2f260b4654ae345630ef14017f240703";
+const GIST_TOKEN = "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";
 const JSON_URL = `https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`;
 
-// 🔴 核心修复：生成6位大写提取码，格式统一
 function generateKey() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let key = '';
@@ -43,63 +42,61 @@ function generateKey() {
 }
 
 function getDynamicKey() {
-  let now = new Date();
-  let mm = now.getMinutes();
-  return `XIN${mm}NB`.toUpperCase();
+  const now = new Date();
+  const mm = now.getMinutes().toString().padStart(2, '0');
+  return `XIN${mm}NB`;
 }
 
 async function getKey() {
-  let name = document.getElementById("name").value.trim();
-  let pwd = document.getElementById("pwd").value.trim().toUpperCase();
-  let msg = document.getElementById("msg");
-  let codeArea = document.getElementById("codeArea");
+  const name = document.getElementById("name").value.trim();
+  const pwd = document.getElementById("pwd").value.trim().toUpperCase();
+  const msg = document.getElementById("msg");
+  const codeArea = document.getElementById("codeArea");
 
-  if (!name) { msg.className = "red"; msg.innerText = "请输入名字"; return; }
-  if (!pwd) { msg.className = "red"; msg.innerText = "请输入动态密码"; return; }
+  if (!name) { msg.className = "red"; msg.innerText = "❌ 请输入名字"; return; }
+  if (!pwd) { msg.className = "red"; msg.innerText = "❌ 请输入动态密码"; return; }
 
-  let realPwd = getDynamicKey();
+  const realPwd = getDynamicKey();
   if (pwd !== realPwd) {
     msg.className = "red"; msg.innerText = "❌ 动态密码错误！每分钟更新一次"; return;
   }
 
-  // 🔴 核心修复：生成大写提取码
-  let key = generateKey();
-  
-  // 强制拉取最新JSON，禁用缓存
-  let res = await fetch(JSON_URL, { cache: "no-store" });
-  let data = await res.json();
-  data.keys = data.keys || [];
-  data.keys.push({
-    name: name,
-    key: key,
-    time: new Date().toLocaleString(),
-    used: false
-  });
+  const key = generateKey();
 
-  // 🔴 核心修复：写入校验，确保提取码真正写入Gist
-  let saveRes = await saveJson(data);
-  if (!saveRes.ok) {
-    msg.className = "red"; msg.innerText = "❌ 提取码生成失败，请重试";
-    return;
+  try {
+    const res = await fetch(JSON_URL, { cache: "no-store" });
+    const data = await res.json();
+    data.keys = data.keys || [];
+
+    data.keys.push({
+      name: name,
+      key: key,
+      time: new Date().toLocaleString(),
+      used: false
+    });
+
+    const saveRes = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: "PATCH",
+      headers: {
+        "Authorization": `token ${GIST_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        files: {
+          "data.json": { content: JSON.stringify(data, null, 2) }
+        }
+      })
+    });
+
+    if (!saveRes.ok) throw new Error("写入失败");
+
+    codeArea.innerText = `✅ 你的提取码：${key}`;
+    codeArea.classList.remove("hide");
+    msg.className = "green";
+    msg.innerText = "✅ 领取成功！复制去提取数据";
+  } catch (err) {
+    msg.className = "red";
+    msg.innerText = "❌ 提取码生成失败，请重试";
   }
-
-  codeArea.innerText = "你的提取码：" + key;
-  codeArea.classList.remove("hide");
-  msg.className = "green"; msg.innerText = "✅ 领取成功！去首页提取数据";
-}
-
-async function saveJson(data) {
-  return await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-    method: "PATCH",
-    headers: {
-      "Authorization": `token ${GIST_TOKEN}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      files: {
-        "data.json": { content: JSON.stringify(data, null, 2) }
-      }
-    })
-  });
 }
 </script>
