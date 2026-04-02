@@ -4,98 +4,112 @@
 <style>
 *{box-sizing:border-box}
 body{background:#f5f7fa;font-family:微软雅黑;padding:20px}
-.box{max-width:700px;margin:40px auto;background:#fff;padding:30px;border-radius:20px;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+.box{max-width:700px;margin:40px auto;background:#fff;padding:30px;border-radius:20px}
 input,button{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd}
-button{background:#007bff;color:white;border:none;cursor:pointer}
-.btn-download{background:#28a745}
+button{background:#007bff;color:white;cursor:pointer}
 .danger{background:#dc3545}
-.logs{max-height:600px;overflow-y:auto;margin-top:20px}
-.item{padding:16px;border-bottom:1px solid #eee}
+.download{background:#28a745}
+.logs{max-height:240px;overflow-y:auto;margin:10px 0}
+.item{padding:10px;border-bottom:1px solid #eee}
 .center{text-align:center}
 .red{color:red}
 .green{color:green}
+.current-pwd{font-size:22px;padding:14px;background:#d1f7e2;border-radius:12px;text-align:center;font-weight:bold;color:#000}
 </style>
 
-<div class="box" id="login">
-  <h2>🔑 管理员登录</h2>
+<div id="login" class="box">
+  <h2>🔑 登录</h2>
   <input type="password" id="pwd" placeholder="密码：123456">
   <div id="msg" class="red center"></div>
   <button onclick="login()">登录</button>
 </div>
 
-<div class="box" id="admin" style="display:none">
-  <h2>📊 领取记录（含数据备份）</h2>
-  <div id="info" class="center green"></div>
-  <button onclick="show()">刷新列表</button>
-  <button class="danger" onclick="reset()">清空已发放数据（重置）</button>
-  <div class="logs" id="list"></div>
+<div id="admin" class="box" style="display:none">
+  <h2>📊 管理后台</h2>
+  
+  <h3>🔐 当前动态密码（1分钟刷新）</h3>
+  <div class="current-pwd" id="currentPwd"></div>
+
+  <h3>🎁 提取码领取记录</h3>
+  <div class="logs" id="keyLogs"></div>
+
+  <h3>📥 数据提取记录</h3>
+  <div class="logs" id="dataLogs"></div>
+
+  <button class="danger" onclick="resetAll()">清空所有数据</button>
 </div>
 
 <script>
-const PWD = "123456";
-const DATA_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.txt";
-let allData = [];
+const PASSWORD = "123456";
 
-// 加载总数据
-async function loadData() {
-  let res = await fetch(DATA_URL + "?t=" + Math.random());
-  let txt = await res.text();
-  allData = txt.split(/\n/).map(i => i.trim()).filter(i => i);
+function getDynamicKey() {
+  let now = new Date();
+  let timeKey = now.getFullYear().toString() +
+                now.getMonth().toString() +
+                now.getDate().toString() +
+                now.getHours().toString() +
+                now.getMinutes().toString();
+  return btoa(timeKey).substr(4,6).toUpperCase();
+}
+
+function showPwd() {
+  document.getElementById("currentPwd").innerText = getDynamicKey();
 }
 
 function login() {
-  if (document.getElementById("pwd").value === PWD) {
+  if (document.getElementById("pwd").value === PASSWORD) {
     document.getElementById("login").style.display = "none";
     document.getElementById("admin").style.display = "block";
-    loadData();
-    show();
+    loadAll();
+    setInterval(showPwd, 1000);
   } else {
     document.getElementById("msg").innerText = "密码错误";
   }
 }
 
-function show() {
-  let logs = JSON.parse(localStorage.getItem("LOGS") || "[]");
-  let used = JSON.parse(localStorage.getItem("USED") || "[]").length;
-  let total = allData.length;
-  let remain = total - used;
-  
-  document.getElementById("info").innerText = 
-    `总数据：${total} 条 | 已发放：${used} 条 | 剩余：${remain} 条 | 领取人数：${logs.length} 人`;
+function loadAll() {
+  showPwd();
+  showKeys();
+  showDataLogs();
+}
 
+function showKeys() {
+  let keys = JSON.parse(localStorage.getItem("ALL_KEYS") || "[]");
   let html = "";
-  logs.forEach((l, i) => {
+  keys.forEach(k => {
+    let status = k.used ? "✅ 已使用" : "🆓 未使用";
+    html += `<div class="item">${k.time}<br>${k.name} → ${k.key} (${status})</div>`;
+  });
+  document.getElementById("keyLogs").innerHTML = html || "<div class='item'>无</div>";
+}
+
+function showDataLogs() {
+  let logs = JSON.parse(localStorage.getItem("LOGS") || "[]");
+  let html = "";
+  logs.forEach((l,i) => {
     html += `
     <div class="item">
-      <div>${l.time}</div>
-      <div><strong>${l.name}</strong> → 领取 ${l.count} 条</div>
-      <button class="btn-download" onclick="downloadBackup(${i})">下载该用户领取的完整数据</button>
+      ${l.time}<br>${l.name} 领取 ${l.count} 条
+      <button class="download" onclick="down(${i})">下载数据</button>
     </div>`;
   });
-  document.getElementById("list").innerHTML = html || "<div class='item'>暂无记录</div>";
+  document.getElementById("dataLogs").innerHTML = html || "<div class='item'>暂无记录</div>";
 }
 
-// 核心：下载用户领取的完整数据备份
-function downloadBackup(index) {
-  let logs = JSON.parse(localStorage.getItem("LOGS") || "[]");
-  let log = logs[index];
-  
-  // 生成带名字+时间的备份文件
-  let fileName = `${log.name}_${log.time.replace(/[\/:\s]/g, '_')}_备份数据.txt`;
-  let blob = new Blob([log.data], { type: "text/plain;charset=utf-8" });
+function down(i) {
+  let logs = JSON.parse(localStorage.getItem("LOGS"));
+  let b = new Blob([logs[i].data],{type:"text/plain"});
   let a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = fileName;
+  a.href=URL.createObjectURL(b);
+  a.download=logs[i].name+"_备份数据.txt";
   a.click();
-  URL.revokeObjectURL(a.href);
 }
 
-function reset() {
-  if (confirm("⚠️ 确定清空所有记录？\n这将重置所有已发放数据，可重新提取！")) {
-    localStorage.setItem("USED", JSON.stringify([]));
-    localStorage.setItem("LOGS", JSON.stringify([]));
-    alert("✅ 数据已全部重置");
-    show();
+function resetAll() {
+  if(confirm("确定清空所有记录？清空后可重新发放")){
+    localStorage.clear();
+    loadAll();
+    alert("✅ 已清空所有数据");
   }
 }
 </script>
