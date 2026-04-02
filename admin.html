@@ -44,7 +44,7 @@ button{background:#007bff;color:white;cursor:pointer;border:none}
 const GIST_ID = "2f260b4654ae345630ef14017f240703";
 const GIST_TOKEN = "2f260b4654ae345630ef14017f240703";
 const PASSWORD = "123456";
-const JSON_URL = `https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json`;
+const JSON_URL = `https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`;
 
 function getDynamicKey() {
   let now = new Date();
@@ -70,7 +70,7 @@ function login() {
 
 async function loadAll() {
   showPwd();
-  let res = await fetch(JSON_URL + "?t=" + Math.random());
+  let res = await fetch(JSON_URL, { cache: "no-store" });
   let data = await res.json();
   showKeys(data.keys || []);
   showDataLogs(data.logs || []);
@@ -98,7 +98,7 @@ function showDataLogs(logs) {
 }
 
 function downloadData(index) {
-  fetch(JSON_URL + "?t=" + Math.random())
+  fetch(JSON_URL + "?t=" + Date.now(), { cache: "no-store" })
     .then(res => res.json())
     .then(data => {
       let log = (data.logs || [])[index];
@@ -120,7 +120,7 @@ async function resetAll() {
 }
 
 async function saveJson(data) {
-  await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+  return await fetch(`https://api.github.com/gists/${GIST_ID}`, {
     method: "PATCH",
     headers: {
       "Authorization": `token ${GIST_TOKEN}`,
