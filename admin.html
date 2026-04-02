@@ -14,11 +14,11 @@ button{background:#007bff;color:white;cursor:pointer}
 .center{text-align:center}
 .red{color:red}
 .green{color:green}
-.current-pwd{font-size:22px;padding:14px;background:#d1f7e2;border-radius:12px;text-align:center;font-weight:bold;color:#000}
+.current-pwd{font-size:24px;padding:16px;background:#d1f7e2;border-radius:12px;text-align:center;font-weight:bold;color:#000}
 </style>
 
 <div id="login" class="box">
-  <h2>🔑 登录</h2>
+  <h2>🔑 管理员登录</h2>
   <input type="password" id="pwd" placeholder="密码：123456">
   <div id="msg" class="red center"></div>
   <button onclick="login()">登录</button>
@@ -27,7 +27,7 @@ button{background:#007bff;color:white;cursor:pointer}
 <div id="admin" class="box" style="display:none">
   <h2>📊 管理后台</h2>
   
-  <h3>🔐 当前动态密码（1分钟刷新）</h3>
+  <h3>🔐 当前动态密码（每分钟自动刷新）</h3>
   <div class="current-pwd" id="currentPwd"></div>
 
   <h3>🎁 提取码领取记录</h3>
@@ -36,6 +36,7 @@ button{background:#007bff;color:white;cursor:pointer}
   <h3>📥 数据提取记录</h3>
   <div class="logs" id="dataLogs"></div>
 
+  <button onclick="loadAll()">🔄 立即刷新所有记录</button>
   <button class="danger" onclick="resetAll()">清空所有数据</button>
 </div>
 
@@ -44,12 +45,9 @@ const PASSWORD = "123456";
 
 function getDynamicKey() {
   let now = new Date();
-  let timeKey = now.getFullYear().toString() +
-                now.getMonth().toString() +
-                now.getDate().toString() +
-                now.getHours().toString() +
-                now.getMinutes().toString();
-  return btoa(timeKey).substr(4,6).toUpperCase();
+  let mm = now.getMinutes();
+  let key = "XIN"+mm+"NB";
+  return key.toUpperCase();
 }
 
 function showPwd() {
@@ -60,8 +58,10 @@ function login() {
   if (document.getElementById("pwd").value === PASSWORD) {
     document.getElementById("login").style.display = "none";
     document.getElementById("admin").style.display = "block";
-    loadAll();
+    
     setInterval(showPwd, 1000);
+    setInterval(loadAll, 3000);
+    loadAll();
   } else {
     document.getElementById("msg").innerText = "密码错误";
   }
@@ -80,7 +80,7 @@ function showKeys() {
     let status = k.used ? "✅ 已使用" : "🆓 未使用";
     html += `<div class="item">${k.time}<br>${k.name} → ${k.key} (${status})</div>`;
   });
-  document.getElementById("keyLogs").innerHTML = html || "<div class='item'>无</div>";
+  document.getElementById("keyLogs").innerHTML = html || "<div class='item'>暂无记录</div>";
 }
 
 function showDataLogs() {
@@ -101,15 +101,15 @@ function down(i) {
   let b = new Blob([logs[i].data],{type:"text/plain"});
   let a = document.createElement("a");
   a.href=URL.createObjectURL(b);
-  a.download=logs[i].name+"_备份数据.txt";
+  a.download=logs[i].name+"_备份.txt";
   a.click();
 }
 
 function resetAll() {
-  if(confirm("确定清空所有记录？清空后可重新发放")){
+  if(confirm("确定清空所有记录？")){
     localStorage.clear();
     loadAll();
-    alert("✅ 已清空所有数据");
+    alert("✅ 已清空");
   }
 }
 </script>
