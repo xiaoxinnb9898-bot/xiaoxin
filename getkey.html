@@ -28,18 +28,16 @@ button{background:#007bff;color:white;border:none}
 </div>
 
 <script>
-const JSON_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.json";
-const GIST_ID = "YOUR_GIST_ID";
-const GIST_TOKEN = "YOUR_GIST_TOKEN";
+const GIST_ID = "2f260b4654ae345630ef14017f240703";
+const GIST_TOKEN = "2f260b4654ae345630ef14017f240703";
+const JSON_URL = `https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json`;
 
-// 生成动态密码（全网统一，每分钟更新）
 function getDynamicKey() {
   let now = new Date();
   let mm = now.getMinutes();
   return `XIN${mm}NB`.toUpperCase();
 }
 
-// 领取提取码
 async function getKey() {
   let name = document.getElementById("name").value.trim();
   let pwd = document.getElementById("pwd").value.trim().toUpperCase();
@@ -54,12 +52,10 @@ async function getKey() {
     msg.className = "red"; msg.innerText = "❌ 动态密码错误！每分钟更新一次"; return;
   }
 
-  // 生成提取码
-  let key = Math.random().toString(36).substr(2,6).toUpperCase();
-  
-  // 读取JSON
-  let res = await fetch(JSON_URL+"?t="+Math.random());
+  let key = Math.random().toString(36).substr(2, 6).toUpperCase();
+  let res = await fetch(JSON_URL + "?t=" + Math.random());
   let data = await res.json();
+  data.keys = data.keys || [];
   data.keys.push({
     name: name,
     key: key,
@@ -67,7 +63,6 @@ async function getKey() {
     used: false
   });
 
-  // 写回JSON
   await saveJson(data);
 
   codeArea.innerText = "你的提取码：" + key;
@@ -75,8 +70,7 @@ async function getKey() {
   msg.className = "green"; msg.innerText = "✅ 领取成功！去首页提取数据";
 }
 
-// 保存JSON
-async function saveJson(data){
+async function saveJson(data) {
   await fetch(`https://api.github.com/gists/${GIST_ID}`, {
     method: "PATCH",
     headers: {
@@ -85,9 +79,7 @@ async function saveJson(data){
     },
     body: JSON.stringify({
       files: {
-        "data.json": {
-          content: JSON.stringify(data, null, 2)
-        }
+        "data.json": { content: JSON.stringify(data, null, 2) }
       }
     })
   });
