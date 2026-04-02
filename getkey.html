@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>免费领取提取码</title>
+<style>
+*{box-sizing:border-box}
+body{background:#f5f7fa;font-family:微软雅黑;padding:20px}
+.box{max-width:500px;margin:50px auto;background:#fff;padding:30px;border-radius:20px}
+input,button{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd}
+button{background:#007bff;color:white;border:none}
+.center{text-align:center}
+.red{color:red}
+.green{color:green}
+.code{font-size:22px;padding:14px;background:#e3f2fd;border-radius:12px;text-align:center;font-weight:bold;margin:10px 0}
+</style>
+
+<div class="box">
+  <h2 class="center">🎁 免费领取提取码</h2>
+  <input id="name" placeholder="请输入你的名字">
+  <input id="pwd" placeholder="请输入当前动态密码">
+  <button onclick="getKey()">立即领取</button>
+  <div id="msg" class="center"></div>
+  <div id="codeArea" class="hide code"></div>
+</div>
+
+<script>
+function getDynamicKey() {
+  let now = new Date();
+  let timeKey = now.getFullYear().toString() +
+                now.getMonth().toString() +
+                now.getDate().toString() +
+                now.getHours().toString() +
+                now.getMinutes().toString();
+  return btoa(timeKey).substr(4,6).toUpperCase();
+}
+
+function getKey() {
+  let name = document.getElementById("name").value.trim();
+  let pwd = document.getElementById("pwd").value.trim().toUpperCase();
+  let msg = document.getElementById("msg");
+  let codeArea = document.getElementById("codeArea");
+
+  if (!name) { msg.className = "red"; msg.innerText = "请输入名字"; return; }
+  if (!pwd) { msg.className = "red"; msg.innerText = "请输入动态密码"; return; }
+
+  let realKey = getDynamicKey();
+  if (pwd !== realKey) {
+    msg.className = "red";
+    msg.innerText = "❌ 动态密码错误！每分钟更新一次";
+    return;
+  }
+
+  let key = Math.random().toString(36).substr(2,6).toUpperCase();
+  
+  let keys = JSON.parse(localStorage.getItem("ALL_KEYS") || "[]");
+  keys.push({
+    name: name,
+    key: key,
+    time: new Date().toLocaleString(),
+    used: false
+  });
+  localStorage.setItem("ALL_KEYS", JSON.stringify(keys));
+
+  codeArea.innerText = "你的提取码：" + key;
+  codeArea.classList.remove("hide");
+  msg.className = "green";
+  msg.innerText = "✅ 领取成功！请复制去提取数据";
+}
+</script>
