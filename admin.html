@@ -3,13 +3,15 @@
 <title>管理后台</title>
 <style>
 *{box-sizing:border-box}
-body{background:#f4f6f8;font-family:微软雅黑;padding:20px}
-.box{max-width:500px;margin:30px auto;background:#fff;padding:25px;border-radius:16px}
-input,button{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #ddd}
-button{background:#2962ff;color:white;border:none}
-.gray{background:#6c757d}
+body{font-family:微软雅黑;background:#f5f7fa;padding:20px}
+.box{max-width:600px;margin:40px auto;background:#fff;padding:30px;border-radius:20px;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+input,button{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd}
+button{background:#007bff;color:white;border:none;cursor:pointer}
+.danger{background:#dc3545}
 .center{text-align:center}
-.green{color:green}
+.red{color:red}
+.logs{max-height:400px;overflow-y:auto;margin-top:20px}
+.item{padding:12px;border-bottom:1px solid #eee}
 </style>
 
 <div class="box" id="login">
@@ -20,51 +22,43 @@ button{background:#2962ff;color:white;border:none}
 </div>
 
 <div class="box" id="admin" style="display:none">
-  <h2>📊 数据状态</h2>
-  <div class="green center" id="info"></div>
-  <button class="gray" onclick="refresh()">刷新状态</button>
-  <button onclick="resetUsed()">清空已使用记录</button>
+  <h2>📊 用户领取记录</h2>
+  <div class="center" id="info"></div>
+  <button onclick="refresh()">刷新记录</button>
+  <button class="danger" onclick="clearLogs()">清空所有记录</button>
+  <div class="logs" id="list"></div>
 </div>
 
 <script>
 const PASSWORD = "123456";
-const TXT_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.txt";
 
-let allData = [];
-let usedData = JSON.parse(localStorage.getItem("used") || "[]");
-
-async function loadData() {
-  let res = await fetch(TXT_URL + "?t=" + Math.random());
-  let text = await res.text();
-  allData = text.split(/\n/).map(i => i.trim()).filter(i => i);
-  refresh();
-}
-
-function login() {
-  let p = document.getElementById("pwd").value;
-  if (p === PASSWORD) {
+function login(){
+  let v = document.getElementById("pwd").value;
+  if(v === PASSWORD){
     document.getElementById("login").style.display = "none";
     document.getElementById("admin").style.display = "block";
-    loadData();
-  } else {
+    refresh();
+  }else{
     document.getElementById("msg").innerText = "密码错误";
   }
 }
 
-function refresh() {
-  let total = allData.length;
-  let used = usedData.length;
-  let remain = total - used;
-  document.getElementById("info").innerText =
-    `总数据：${total} 条 | 已用：${used} 条 | 剩余：${remain} 条`;
+function refresh(){
+  let records = JSON.parse(localStorage.getItem("records")||"[]");
+  let used = JSON.parse(localStorage.getItem("used")||"[]").length;
+  document.getElementById("info").innerText = `总领取人数：${records.length} 人 | 已用数据：${used} 条`;
+
+  let html = "";
+  records.forEach(r=>{
+    html += `<div class="item">${r.time}<br><strong>${r.name}</strong> 领取了 ${r.count} 条</div>`;
+  });
+  document.getElementById("list").innerHTML = html || "<div class='item'>暂无记录</div>";
 }
 
-function resetUsed() {
-  if (confirm("确定要清空已使用记录吗？")) {
-    usedData = [];
-    localStorage.setItem("used", JSON.stringify(usedData));
+function clearLogs(){
+  if(confirm("确定清空所有记录？")){
+    localStorage.setItem("records","[]");
     refresh();
-    alert("已重置");
   }
 }
 </script>
