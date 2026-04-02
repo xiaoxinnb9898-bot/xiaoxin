@@ -24,7 +24,7 @@ button{cursor:pointer;border:none;color:#fff}
   <h2>🔐 数据提取</h2>
   <div class="green center" id="remain"></div>
 
-  <input id="name" placeholder="你是谁？" value="阿乐">
+  <input id="name" placeholder="你是谁？">
   <input id="count" type="number" min="1" placeholder="需要多少数据？" value="120">
   <input id="key" placeholder="请输入提取码">
 
@@ -92,7 +92,7 @@ async function getData(){
       msg.className="red";msg.innerText="❌ 数据已全部发完！";return;
     }
     if(cnt>ava.length){
-      msg.className="red";msg.innerText=`❌ 仅剩 ${ava.length} 条`;return;
+      msg.className="red";msg.innerText=`❌ 仅剩 ${ava.length} 条数据`;return;
     }
 
     result = ava.slice(0,cnt);
@@ -128,7 +128,8 @@ async function getData(){
     msg.innerText="✅ 提取成功！";
   } catch (err) {
     msg.className="red";
-    msg.innerText="❌ 提取失败，请重试";
+    msg.innerText="❌ 操作失败";
+    console.error(err);
   }
 }
 
