@@ -4,26 +4,27 @@
 <style>
 *{box-sizing:border-box}
 body{background:#f5f7fa;font-family:微软雅黑;padding:20px}
-.box{max-width:600px;margin:40px auto;background:#fff;padding:30px;border-radius:20px}
+.box{max-width:600px;margin:40px auto;background:#fff;padding:30px;border-radius:20px;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
 input,button{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd}
-button{background:#007bff;color:white;border:none}
+button{background:#007bff;color:white;border:none;cursor:pointer}
 .danger{background:#dc3545}
 .logs{max-height:400px;overflow-y:auto;margin-top:20px}
 .item{padding:12px;border-bottom:1px solid #eee}
 .center{text-align:center}
 .red{color:red}
+.green{color:green}
 </style>
 
 <div class="box" id="login">
   <h2>🔑 登录</h2>
   <input type="password" id="pwd" placeholder="密码：123456">
   <div id="msg" class="red center"></div>
-  button onclick="login()">登录</button>
+  <button onclick="login()">登录</button>
 </div>
 
 <div class="box" id="admin" style="display:none">
   <h2>📊 领取记录</h2>
-  <div id="info" class="center"></div>
+  <div id="info" class="center green"></div>
   <button onclick="show()">刷新</button>
   <button class="danger" onclick="reset()">清空已发放数据（重置）</button>
   <div class="logs" id="list"></div>
@@ -31,11 +32,21 @@ button{background:#007bff;color:white;border:none}
 
 <script>
 const PWD = "123456";
+const DATA_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.txt";
+let allData = [];
+
+// 加载数据
+async function loadData() {
+  let res = await fetch(DATA_URL + "?t=" + Math.random());
+  let txt = await res.text();
+  allData = txt.split(/\n/).map(i => i.trim()).filter(i => i);
+}
 
 function login() {
   if (document.getElementById("pwd").value === PWD) {
     document.getElementById("login").style.display = "none";
     document.getElementById("admin").style.display = "block";
+    loadData();
     show();
   } else {
     document.getElementById("msg").innerText = "密码错误";
@@ -45,11 +56,13 @@ function login() {
 function show() {
   let logs = JSON.parse(localStorage.getItem("LOGS") || "[]");
   let used = JSON.parse(localStorage.getItem("USED") || "[]").length;
-  document.getElementById("info").innerText = `已发放：${used} 条 | 领取人数：${logs.length} 人`;
+  let total = allData.length;
+  let remain = total - used;
+  document.getElementById("info").innerText = `总数据：${total} 条 | 已发放：${used} 条 | 剩余：${remain} 条 | 领取人数：${logs.length} 人`;
 
   let html = "";
   logs.forEach(l => {
-    html += `<div class="item">${l.time}<br>${l.name} → 领取 ${l.count} 条</div>`;
+    html += `<div class="item">${l.time}<br><strong>${l.name}</strong> → 领取 ${l.count} 条</div>`;
   });
   document.getElementById("list").innerHTML = html || "<div class='item'>暂无记录</div>";
 }
@@ -58,6 +71,7 @@ function reset() {
   if (confirm("确定清空所有发放记录？数据将可重新提取")) {
     localStorage.setItem("USED", "[]");
     localStorage.setItem("LOGS", "[]");
+    alert("✅ 数据已重置");
     show();
   }
 }
