@@ -3,79 +3,144 @@
 <title>数据提取</title>
 <style>
 *{box-sizing:border-box}
-body{background:#f4f6f8;font-family:微软雅黑;padding:20px}
-.box{max-width:500px;margin:30px auto;background:#fff;padding:25px;border-radius:16px}
-input,button{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #ddd}
-button{background:#007bff;color:white;border:none}
-.red{color:red}
-.green{color:green}
+body{font-family:微软雅黑;background:#f5f7fa;margin:0;padding:20px;transition:.3s}
+.box{max-width:520px;margin:40px auto;background:#fff;padding:30px;border-radius:20px;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+h2{text-align:center;margin-top:0}
+input,button{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd}
+button{cursor:pointer;border:none;color:#fff}
+.btn-blue{background:#007bff}
+.btn-green{background:#28a745}
+.btn-copy{background:#17a2b8}
+.btn-dark{background:#6c757d}
+.btn-contact{background:#ff7043}
 .center{text-align:center}
+.red{color:#dc3545}
+.green{color:#28a745}
+.tip{font-size:14px;color:#666;margin:4px 0}
+.hide{display:none}
+.result{padding:12px;background:#f8f9fa;border-radius:8px;max-height:200px;overflow-y:auto;margin:10px 0}
+.mode-btn{position:fixed;top:20px;right:20px;padding:10px 14px;border-radius:12px;background:#222;color:#fff}
+
+/* 暗黑模式 */
+body.dark{background:#121212;color:#eee}
+body.dark .box{background:#1e1e1e}
+body.dark input{background:#2d2d2d;color:#eee;border-color:#444}
+body.dark .result{background:#2d2d2d}
 </style>
+
+<button class="mode-btn" onclick="toggleDark()">暗黑模式</button>
 
 <div class="box">
   <h2>🔐 数据提取</h2>
-  <input id="key" placeholder="输入提取码">
-  <input id="num" type="number" value="10" min="1" placeholder="提取数量">
+  <div class="tip green" id="remain"></div>
+
+  <input id="name" placeholder="你是谁？（请输入名字）">
+  <input id="count" type="number" min="1" placeholder="你需要多少数据？">
+  <input id="key" placeholder="请输入提取码">
+
   <div id="msg" class="center"></div>
-  <button onclick="get()">提取数据</button>
+  <button class="btn-blue" onclick="getData()">确认提取</button>
+  <button class="btn-copy hide" id="copyBtn" onclick="copyResult()">一键复制内容</button>
+  <button class="btn-green hide" id="downloadBtn" onclick="downloadTxt()">下载TXT文件</button>
+  <button class="btn-contact" onclick="window.open('https://t.me/vip98886888','_blank')">联系管理员</button>
+
+  <div class="result hide" id="resultArea"></div>
 </div>
 
 <script>
-// 你的数据源 TXT
-const TXT_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.txt";
-
-// 这里设置你想要的固定提取码
+// 配置
+const TXT_URL = "https://xiaoxinnb9888-bot.github.io/xiaoxin/data.txt";
 const FIXED_KEY = "xiaoxin2025";
 
+// 全局数据
 let allData = [];
-let usedData = JSON.parse(localStorage.getItem("used") || "[]");
+let used = JSON.parse(localStorage.getItem("used")||"[]");
+let currentResult = [];
+let userName = localStorage.getItem("userName") || "";
 
-// 加载你的 TXT 数据库
-async function loadData() {
-  let res = await fetch(TXT_URL + "?t=" + Math.random());
-  let text = await res.text();
-  allData = text.split(/\n/).map(i => i.trim()).filter(i => i);
+// 自动填入名字
+window.onload = function(){
+  if(userName) document.getElementById("name").value = userName;
+  loadData();
 }
-loadData();
 
-// 提取并下载 TXT
-function get() {
+// 加载数据并显示剩余
+async function loadData(){
+  let res = await fetch(TXT_URL+"?t="+Math.random());
+  let txt = await res.text();
+  allData = txt.split("\n").map(i=>i.trim()).filter(i=>i);
+  showRemain();
+}
+
+// 显示剩余条数
+function showRemain(){
+  let r = allData.filter(d=>!used.includes(d)).length;
+  document.getElementById("remain").innerText = `当前剩余数据：${r} 条`;
+}
+
+// 提取数据
+function getData(){
+  let name = document.getElementById("name").value.trim();
+  let num = parseInt(document.getElementById("count").value) || 0;
   let key = document.getElementById("key").value.trim();
-  let need = parseInt(document.getElementById("num").value) || 1;
   let msg = document.getElementById("msg");
 
-  // 验证提取码
-  if (key !== FIXED_KEY) {
-    msg.className = "red";
-    msg.innerText = "提取码不正确";
-    return;
-  }
+  // 非空校验
+  if(!name){msg.className="red";msg.innerText="请输入名字";return;}
+  if(num<1){msg.className="red";msg.innerText="数量至少1条";return;}
+  if(!key){msg.className="red";msg.innerText="请输入提取码";return;}
 
-  let available = allData.filter(d => !usedData.includes(d));
+  // 记住名字
+  localStorage.setItem("userName", name);
 
-  if (available.length === 0) {
-    msg.className = "red";
-    msg.innerText = "数据已用完，请联系小新";
-    return;
-  }
-  if (need > available.length) {
-    msg.className = "red";
-    msg.innerText = `仅剩 ${available.length} 条`;
-    return;
-  }
+  // 提取码验证
+  if(key !== FIXED_KEY){msg.className="red";msg.innerText="提取码错误";return;}
 
-  let result = available.slice(0, need);
-  usedData.push(...result);
-  localStorage.setItem("used", JSON.stringify(usedData));
+  let available = allData.filter(d=>!used.includes(d));
+  if(available.length===0){msg.className="red";msg.innerText="数据已用完";return;}
+  if(num>available.length){msg.className="red";msg.innerText=`仅剩 ${available.length} 条`;return;}
 
-  // 输出 TXT 文件
-  let blob = new Blob([result.join("\n")], { type: "text/plain" });
+  // 提取
+  currentResult = available.slice(0, num);
+  used.push(...currentResult);
+  localStorage.setItem("used", JSON.stringify(used));
+
+  // 记录领取日志
+  let records = JSON.parse(localStorage.getItem("records")||"[]");
+  records.push({name,count:num,time:new Date().toLocaleString()});
+  localStorage.setItem("records", JSON.stringify(records));
+
+  // 显示结果
+  let area = document.getElementById("resultArea");
+  area.innerText = currentResult.join("\n");
+  area.classList.remove("hide");
+  document.getElementById("copyBtn").classList.remove("hide");
+  document.getElementById("downloadBtn").classList.remove("hide");
+  msg.className="green";
+  msg.innerText="✅ 提取成功，请选择复制或下载";
+  showRemain();
+}
+
+// 一键复制
+function copyResult(){
+  let text = currentResult.join("\n");
+  navigator.clipboard.writeText(text).then(()=>{
+    alert("复制成功！");
+  })
+}
+
+// 下载TXT
+function downloadTxt(){
+  let name = document.getElementById("name").value.trim() || "数据";
+  let blob = new Blob([currentResult.join("\n")], {type:"text/plain"});
   let a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "提取数据.txt";
+  a.download = `${name}_提取数据.txt`;
   a.click();
+}
 
-  msg.className = "green";
-  msg.innerText = "✅ 提取成功，已下载";
+// 暗黑模式
+function toggleDark(){
+  document.body.classList.toggle("dark");
 }
 </script>
