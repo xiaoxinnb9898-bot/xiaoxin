@@ -24,7 +24,7 @@ button{cursor:pointer;border:none;color:#fff}
   <h2>🔐 数据提取</h2>
   <div class="green center" id="remain"></div>
 
-  <input id="name" placeholder="你是谁？">
+  <input id="name" placeholder="你是谁？" value="阿乐">
   <input id="count" type="number" min="1" placeholder="需要多少数据？" value="120">
   <input id="key" placeholder="请输入提取码">
 
@@ -51,7 +51,6 @@ const JSON_URL = `https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID
 let allData = [];
 let result = [];
 
-// 加载数据 + 强制刷新缓存
 async function loadData(){
   let r = await fetch(DATA_URL+"?t="+Date.now(), { cache: "no-store" });
   let t = await r.text();
@@ -59,7 +58,6 @@ async function loadData(){
   await updateRemain();
 }
 
-// 更新剩余数量（强制拉取最新数据）
 async function updateRemain(){
   let res = await fetch(JSON_URL, { cache: "no-store" });
   let data = await res.json();
@@ -68,20 +66,18 @@ async function updateRemain(){
   document.getElementById("remain").innerText = `剩余可用：${remain} 条`;
 }
 
-// 提取数据（彻底修复提取码验证逻辑）
 async function getData(){
   let name = document.getElementById("name").value.trim();
   let cnt = parseInt(document.getElementById("count").value)||1;
-  // 🔴 核心修复：强制把用户输入的提取码转成大写，彻底解决大小写不匹配
+  // 🔴 核心修复：强制转大写，和生成的提取码格式完全统一
   let key = document.getElementById("key").value.trim().toUpperCase();
   let msg = document.getElementById("msg");
 
-  // 基础校验
   if(!name){msg.className="red";msg.innerText="请输入名字";return;}
   if(cnt<1){msg.className="red";msg.innerText="至少1条";return;}
   if(!key){msg.className="red";msg.innerText="请输入提取码";return;}
 
-  // 🔴 核心修复：强制拉取最新JSON数据，避免缓存导致的验证错误
+  // 🔴 核心修复：强制拉取最新JSON，禁用缓存
   let res = await fetch(JSON_URL, { cache: "no-store" });
   let data = await res.json();
   data.keys = data.keys || [];
@@ -90,28 +86,21 @@ async function getData(){
   let findKey = data.keys.find(k => k.key === key && k.used === false);
 
   if(!findKey){
-    // 给用户更明确的错误提示
     msg.className="red";
     msg.innerText="❌ 提取码无效/已使用！请检查提取码是否正确，或联系管理员";
     return;
   }
 
-  // 计算可用数据
   let used = data.logs ? data.logs.flatMap(l=> (l.data || "").split("\n").filter(i=>i)) : [];
   let ava = allData.filter(d=>!used.includes(d));
 
   if(ava.length===0){
-    msg.className="red";
-    msg.innerText="❌ 数据已全部发完！";
-    return;
+    msg.className="red";msg.innerText="❌ 数据已全部发完！";return;
   }
   if(cnt>ava.length){
-    msg.className="red";
-    msg.innerText=`❌ 仅剩 ${ava.length} 条数据，无法提取${cnt}条`;
-    return;
+    msg.className="red";msg.innerText=`❌ 仅剩 ${ava.length} 条数据，无法提取${cnt}条`;return;
   }
 
-  // 提取数据 + 标记提取码已使用
   result = ava.slice(0,cnt);
   findKey.used = true;
   data.logs = data.logs || [];
@@ -122,22 +111,18 @@ async function getData(){
     data: result.join("\n")
   });
 
-  // 写回JSON + 刷新页面
   await saveJson(data);
   await updateRemain();
 
-  // 显示结果
   document.getElementById("resultArea").innerText = result.join("\n");
   document.getElementById("resultArea").classList.remove("hide");
   document.getElementById("copyBtn").classList.remove("hide");
   document.getElementById("downloadBtn").classList.remove("hide");
-  msg.className="green";
-  msg.innerText="✅ 提取成功！";
+  msg.className="green";msg.innerText="✅ 提取成功！";
 }
 
-// 保存JSON到Gist（强制更新）
 async function saveJson(data){
-  await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+  return await fetch(`https://api.github.com/gists/${GIST_ID}`, {
     method: "PATCH",
     headers: {
       "Authorization": `token ${GIST_TOKEN}`,
