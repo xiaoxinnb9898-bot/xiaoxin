@@ -28,20 +28,19 @@ button{background:#007bff;color:white;border:none}
 </div>
 
 <script>
+const JSON_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.json";
+const GIST_ID = "YOUR_GIST_ID";
+const GIST_TOKEN = "YOUR_GIST_TOKEN";
+
+// 生成动态密码（全网统一，每分钟更新）
 function getDynamicKey() {
   let now = new Date();
   let mm = now.getMinutes();
-  let key = "XIN"+mm+"NB";
-  return key.toUpperCase();
+  return `XIN${mm}NB`.toUpperCase();
 }
 
-setInterval(()=>{
-  window.dynamicPassword = getDynamicKey();
-}, 1000);
-
-let dynamicPassword = getDynamicKey();
-
-function getKey() {
+// 领取提取码
+async function getKey() {
   let name = document.getElementById("name").value.trim();
   let pwd = document.getElementById("pwd").value.trim().toUpperCase();
   let msg = document.getElementById("msg");
@@ -50,27 +49,47 @@ function getKey() {
   if (!name) { msg.className = "red"; msg.innerText = "请输入名字"; return; }
   if (!pwd) { msg.className = "red"; msg.innerText = "请输入动态密码"; return; }
 
-  let real = getDynamicKey();
-  if (pwd !== real) {
-    msg.className = "red";
-    msg.innerText = "❌ 动态密码错误！每分钟自动更新";
-    return;
+  let realPwd = getDynamicKey();
+  if (pwd !== realPwd) {
+    msg.className = "red"; msg.innerText = "❌ 动态密码错误！每分钟更新一次"; return;
   }
 
+  // 生成提取码
   let key = Math.random().toString(36).substr(2,6).toUpperCase();
   
-  let keys = JSON.parse(localStorage.getItem("ALL_KEYS") || "[]");
-  keys.push({
+  // 读取JSON
+  let res = await fetch(JSON_URL+"?t="+Math.random());
+  let data = await res.json();
+  data.keys.push({
     name: name,
     key: key,
     time: new Date().toLocaleString(),
     used: false
   });
-  localStorage.setItem("ALL_KEYS", JSON.stringify(keys));
+
+  // 写回JSON
+  await saveJson(data);
 
   codeArea.innerText = "你的提取码：" + key;
   codeArea.classList.remove("hide");
-  msg.className = "green";
-  msg.innerText = "✅ 领取成功！去首页提取数据";
+  msg.className = "green"; msg.innerText = "✅ 领取成功！去首页提取数据";
+}
+
+// 保存JSON
+async function saveJson(data){
+  await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+    method: "PATCH",
+    headers: {
+      "Authorization": `token ${GIST_TOKEN}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      files: {
+        "data.json": {
+          content: JSON.stringify(data, null, 2)
+        }
+      }
+    })
+  });
 }
 </script>
