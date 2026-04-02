@@ -9,13 +9,13 @@ h2{text-align:center}
 input,button{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd}
 button{cursor:pointer;border:none;color:#fff}
 .btn-blue{background:#007bff}
-.btn-copy{background:#17a2b8}
+.btn-copy{background:#17a2b0}
 .btn-download{background:#28a745}
 .center{text-align:center}
 .red{color:#dc3545}
 .green{color:#28a745}
 .hide{display:none}
-.result{padding:12px;background:#f8f9fa;border-radius:8px;margin:10px 0}
+.result{padding:12px;background:#f8f8f8;border-radius:8px;margin:10px 0}
 </style>
 
 <div class="box">
@@ -31,6 +31,9 @@ button{cursor:pointer;border:none;color:#fff}
   <button class="btn-download hide" id="downloadBtn" onclick="downloadTxt()">下载TXT</button>
 
   <div class="result hide" id="resultArea"></div>
+
+  <button style="background:#ff7043;margin-top:15px" onclick="window.open('https://t.me/XIAOXINOOO2','_blank')">📞 联系管理员小新</button>
+  <button style="background:#9c27b0;margin-top:15px" onclick="window.open('https://t.me/vip98886888','_blank')">📢 官方飞机频道</button>
 </div>
 
 <script>
@@ -40,19 +43,110 @@ const DATA_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.txt";
 const JSON_URL = `https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`;
 const API_URL = `https://api.github.com/gists/${GIST_ID}`;
 
-// 额度卡密配置
+// 100条固定卡密，每条仅限300条
 const KAMI_LIST = {
-  "KAMI10": 10,
-  "KAMI50": 50,
-  "KAMI100": 100,
-  "KAMI300": 300,
-  "KAMI500": 500,
-  "KAMI1000": 1000
+  "A7S2K9D1": 300,
+  "B8P3L0E2": 300,
+  "C9Q4M1F3": 300,
+  "D0R5N2G4": 300,
+  "E1S6O3H5": 300,
+  "F2T7P4I6": 300,
+  "G3U8Q5J7": 300,
+  "H4V9R6K8": 300,
+  "I5W0S7L9": 300,
+  "J6X1T8M0": 300,
+  "K7Y2U9N1": 300,
+  "L8Z3V0O2": 300,
+  "M9A4W1P3": 300,
+  "N0B5X2Q4": 300,
+  "O1C6Y3R5": 300,
+  "P2D7Z4S6": 300,
+  "Q3E8A5T7": 300,
+  "R4F9B6U8": 300,
+  "S5G0C7V9": 300,
+  "T6H1D8W0": 300,
+  "U7I2E9X1": 300,
+  "V8J3F0Y2": 300,
+  "W9K4G1Z3": 300,
+  "X0L5H2A4": 300,
+  "Y1M6I3B5": 300,
+  "Z2N7J4C6": 300,
+  "13O8K5D7": 300,
+  "24P9L6E8": 300,
+  "35Q0M7F9": 300,
+  "46R1N8G0": 300,
+  "57S2O9H1": 300,
+  "68T3P0I2": 300,
+  "79U4Q1J3": 300,
+  "80V5R2K4": 300,
+  "91W6S3L5": 300,
+  "02X7T4M6": 300,
+  "13Y8U5N7": 300,
+  "24Z9V6O8": 300,
+  "35A0W7P9": 300,
+  "46B1X8Q0": 300,
+  "57C2Y9R1": 300,
+  "68D3Z0S2": 300,
+  "79E4A1T3": 300,
+  "80F5B2U4": 300,
+  "91G6C3V5": 300,
+  "02H7D4W6": 300,
+  "13I8E5X7": 300,
+  "24J9F6Y8": 300,
+  "35K0G7Z9": 300,
+  "46L1H8A0": 300,
+  "57M2I9B1": 300,
+  "68N3J0C2": 300,
+  "79O4K1D3": 300,
+  "80P5L2E4": 300,
+  "91Q6M3F5": 300,
+  "02R7N4G6": 300,
+  "13S8O5H7": 300,
+  "24T9P6I8": 300,
+  "35U0Q7J9": 300,
+  "46V1R8K0": 300,
+  "57W2S9L1": 300,
+  "68X3T0M2": 300,
+  "79Y4U1N3": 300,
+  "80Z5V2O4": 300,
+  "91A6W3P5": 300,
+  "02B7X4Q6": 300,
+  "13C8Y5R7": 300,
+  "24D9Z6S8": 300,
+  "35E0A7T9": 300,
+  "46F1B8U0": 300,
+  "57G2C9V1": 300,
+  "68H3D0W2": 300,
+  "79I4E1X3": 300,
+  "80J5F2Y4": 300,
+  "91K6G3Z5": 300,
+  "02L7H4A6": 300,
+  "13M8I5B7": 300,
+  "24N9J6C8": 300,
+  "35O0K7D9": 300,
+  "46P1L8E0": 300,
+  "57Q2M9F1": 300,
+  "68R3N0G2": 300,
+  "79S4O1H3": 300,
+  "80T5P2I4": 300,
+  "91U6Q3J5": 300,
+  "02V7R4K6": 300,
+  "13W8S5L7": 300,
+  "24X9T6M8": 300,
+  "35Y0U7N9": 300,
+  "46Z1V8O0": 300,
+  "57A2W9P1": 300,
+  "68B3X0Q2": 300,
+  "79C4Y1R3": 300,
+  "80D5Z2S4": 300,
+  "91E6A3T5": 300,
+  "02F7B4U6": 300,
+  "13G8C5V7": 300,
+  "24H9D6W8": 300
 };
 
 let allData = [];
 let result = [];
-let usedKeyList = [];
 
 async function loadData() {
   try {
@@ -63,7 +157,6 @@ async function loadData() {
   loadUsedKeys();
 }
 
-// 加载已经使用过的卡密
 async function loadUsedKeys() {
   try {
     let res = await fetch(JSON_URL);
@@ -76,7 +169,6 @@ async function loadUsedKeys() {
   }
 }
 
-// 剩余数据条数
 function updateRemain(data) {
   try {
     const used = data.logs ? data.logs.flatMap(l => (l.data || "").split("\n").filter(i => i)) : [];
@@ -92,70 +184,49 @@ async function getData() {
 
   if (!name) { msg.className = "red"; msg.innerText = "❌ 请输入名字"; return; }
   if (!key) { msg.className = "red"; msg.innerText = "❌ 请输入提取卡密"; return; }
-
-  // 检查卡密是否存在
-  if (!KAMI_LIST.hasOwnProperty(key)) {
-    msg.className = "red"; msg.innerText = "❌ 无效的提取卡密"; return;
-  }
-
-  // 检查是否已使用
-  if (usedKeyList.includes(key)) {
-    msg.className = "red"; msg.innerText = "❌ 该卡密已被使用"; return;
-  }
-
-  const limit = KAMI_LIST[key];
+  if (!KAMI_LIST.hasOwnProperty(key)) { msg.className = "red"; msg.innerText = "❌ 无效卡密"; return; }
 
   try {
     let res = await fetch(JSON_URL);
     let data = await res.json();
-    data.logs = data.logs || [];
+    const logs = data.logs || [];
 
+    if (logs.some(i => i.key === key)) {
+      msg.className = "red"; msg.innerText = "❌ 该卡密已使用"; return;
+    }
+
+    const limit = KAMI_LIST[key];
     const used = data.logs.flatMap(l => (l.data || "").split("\n").filter(i => i)) || [];
     const ava = allData.filter(d => !used.includes(d));
 
-    if (ava.length === 0) {
-      msg.className = "red"; msg.innerText = "❌ 数据已全部发完！"; return;
-    }
-    if (limit > ava.length) {
-      msg.className = "red"; msg.innerText = `❌ 剩余数据不足${limit}条`; return;
+    if (ava.length < limit) {
+      msg.className = "red"; msg.innerText = "❌ 剩余数据不足"; return;
     }
 
-    // 按卡密额度提取
     result = ava.slice(0, limit);
-
-    // 记录使用日志
     data.logs.push({
       name: name,
       key: key,
-      limit: limit,
+      count: limit,
       time: new Date().toLocaleString(),
       data: result.join("\n")
     });
 
-    // 同步到 Gist
     await fetch(API_URL, {
       method: "PATCH",
-      headers: {
-        "Authorization": `token ${GIST_TOKEN}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        files: { "data.json": { content: JSON.stringify(data, null, 2) } }
-      })
+      headers: { "Authorization": `token ${GIST_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ files: { "data.json": { content: JSON.stringify(data, null, 2) } } })
     });
 
-    // 显示结果
     document.getElementById("resultArea").innerText = result.join("\n");
     document.getElementById("resultArea").classList.remove("hide");
     document.getElementById("copyBtn").classList.remove("hide");
     document.getElementById("downloadBtn").classList.remove("hide");
     msg.className = "green";
-    msg.innerText = `✅ 提取成功！本次提取 ${limit} 条`;
-
-    usedKeyList.push(key);
+    msg.innerText = `✅ 提取成功！共${limit}条`;
   } catch (err) {
     msg.className = "red";
-    msg.innerText = "❌ 提取失败，请稍后重试";
+    msg.innerText = "❌ 提取失败";
     console.error(err);
   }
 }
