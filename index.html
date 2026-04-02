@@ -5,43 +5,49 @@
 *{box-sizing:border-box}
 body{font-family:微软雅黑;background:#f5f7fa;margin:0;padding:20px}
 .box{max-width:520px;margin:40px auto;background:#fff;padding:30px;border-radius:20px;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
-h2{text-align:center}
-input,button{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd}
-button{cursor:pointer;border:none;color:#fff}
+h2{text-align:center;color:#333;margin-bottom:20px}
+input,button{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd;font-size:16px}
+input:focus{border-color:#007bff;outline:none}
+button{cursor:pointer;border:none;color:#fff;transition:background 0.3s}
 .btn-blue{background:#007bff}
-.btn-copy{background:#17a2b0}
-.btn-download{background:#28a745}
+.btn-blue:hover{background:#0056b3}
+.btn-copy{background:#17a2b0;margin-top:5px}
+.btn-copy:hover{background:#138496}
+.btn-download{background:#28a745;margin-top:5px}
+.btn-download:hover{background:#218838}
 .center{text-align:center}
-.red{color:#dc3545}
-.green{color:#28a745}
+.red{color:red}
+.green{color:green}
 .hide{display:none}
-.result{padding:12px;background:#f8f8f8;border-radius:8px;margin:10px 0}
+.result{padding:18px;background:#f8f9fa;border-radius:12px;margin:15px 0;white-space:pre-wrap;font-size:14px;max-height:300px;overflow-y:auto;}
+.remain{font-size:16px;font-weight:bold;margin:10px 0;}
 </style>
 
 <div class="box">
-  <h2>🔐 数据提取</h2>
-  <div class="green center" id="remain"></div>
+  <h2>🔐 数据提取中心</h2>
+  <div class="green center remain" id="remain">剩余可用数据：加载中...</div>
 
-  <input id="name" placeholder="请输入名字">
-  <input id="key" placeholder="请输入卡密">
+  <input id="name" placeholder="请输入你的名字（与领卡一致）">
+  <input id="key" placeholder="请输入领取的卡密" type="text">
 
   <div id="msg" class="center"></div>
   <button class="btn-blue" onclick="getData()">确认提取</button>
-  <button class="btn-copy hide" id="copyBtn" onclick="copyResult()">一键复制</button>
-  <button class="btn-download hide" id="downloadBtn" onclick="downloadTxt()">下载TXT</button>
+  <button class="btn-copy hide" id="copyBtn" onclick="copyResult()">一键复制数据</button>
+  <button class="btn-download hide" id="downloadBtn" onclick="downloadTxt()">下载TXT文件</button>
 
   <div class="result hide" id="resultArea"></div>
 
   <button style="background:#ff7043;margin-top:15px" onclick="window.open('https://t.me/XIAOXINOOO2','_blank')">📞 联系管理员小新</button>
-  <button style="background:#9c27b0;margin-top:15px" onclick="window.open('https://t.me/vip98886888','_blank')">📢 官方飞机频道</button>
+  <button style="background:#9c27b0;margin-top:10px" onclick="window.open('https://t.me/vip98886888','_blank')">📢 官方飞机频道</button>
 </div>
 
 <script>
+// 核心配置
 const GIST_ID = "2f260b4654ae345630ef14017f240703";
 const GIST_TOKEN = "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";
+const STORAGE_KEY = "xiaoxin_data";
 const DATA_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.txt";
-
-// 100条卡密，每条300条
+// 100条卡密映射（每条300条额度）
 const KAMI_LIST = {
   "A7S2K9D1":300,"B8P3L0E2":300,"C9Q4M1F3":300,"D0R5N2G4":300,"E1S6O3H5":300,
   "F2T7P4I6":300,"G3U8Q5J7":300,"H4V9R6K8":300,"I5W0S7L9":300,"J6X1T8M0":300,
@@ -65,97 +71,145 @@ const KAMI_LIST = {
   "02F7B4U6":300,"13G8C5V7":300,"24H9D6W8":300
 };
 
-let allData = [];
-let result = [];
+let allData = []; // 原始数据
+let resultData = []; // 提取的结果数据
 
-async function loadData() {
+// 页面加载初始化
+window.onload = async function() {
+  await loadRawData();
+  await updateRemainData();
+};
+
+// 加载原始数据
+async function loadRawData() {
   try {
-    const r = await fetch(DATA_URL + "?t=" + Date.now());
-    const t = await r.text();
-    allData = t.split("\n").map(i => i.trim()).filter(i => i);
-  } catch (e) {}
-  updateRemain();
+    const res = await fetch(DATA_URL + "?t=" + Date.now(), { cache: "no-store" });
+    const text = await res.text();
+    allData = text.split("\n").map(i => i.trim()).filter(i => i);
+  } catch (e) {
+    alert("❌ 原始数据加载失败，请刷新页面！");
+    console.error(e);
+  }
 }
 
-async function updateRemain() {
+// 更新剩余可用数据
+async function updateRemainData() {
   try {
-    let res = await fetch(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json`);
-    let d = await res.json();
-    const used = new Set((d.logs || []).flatMap(l => (l.data || "").split("\n").filter(i => i)));
-    const remain = allData.filter(x => !used.has(x)).length;
-    document.getElementById("remain").innerText = `剩余可用：${remain} 条`;
-  } catch (e) {}
+    const localStr = localStorage.getItem(STORAGE_KEY);
+    const data = localStr ? JSON.parse(localStr) : { logs: [] };
+    const usedData = new Set(data.logs.flatMap(l => (l.data || "").split("\n").filter(i => i)));
+    const remain = allData.filter(d => !usedData.has(d)).length;
+    document.getElementById("remain").innerText = `剩余可用数据：${remain} 条`;
+  } catch (e) {
+    document.getElementById("remain").innerText = `剩余可用数据：${allData.length} 条`;
+  }
 }
 
+// 保存数据到Gist
+async function saveToGist(data) {
+  try {
+    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: "PATCH",
+      headers: {
+        "Authorization": `token ${GIST_TOKEN}`,
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify({ files: { "data.json": { content: JSON.stringify(data, null, 2) } } })
+    });
+  } catch (e) {console.log("Gist同步失败，本地已保存：", e);}
+}
+
+// 核心：提取数据
 async function getData() {
   const name = document.getElementById("name").value.trim();
   const key = document.getElementById("key").value.trim();
   const msg = document.getElementById("msg");
+  const resultArea = document.getElementById("resultArea");
+  const copyBtn = document.getElementById("copyBtn");
+  const downloadBtn = document.getElementById("downloadBtn");
 
-  if (!name) { msg.className = "red"; msg.innerText = "❌ 请输入名字"; return; }
-  if (!key) { msg.className = "red"; msg.innerText = "❌ 请输入卡密"; return; }
-  if (!KAMI_LIST[key]) { msg.className = "red"; msg.innerText = "❌ 卡密无效"; return; }
+  // 基础校验
+  if (!name) { msg.className = "red"; msg.innerText = "❌ 请输入你的名字！"; return; }
+  if (!key) { msg.className = "red"; msg.innerText = "❌ 请输入提取卡密！"; return; }
+  if (!KAMI_LIST.hasOwnProperty(key)) { msg.className = "red"; msg.innerText = "❌ 无效的提取卡密！"; return; }
 
   try {
-    let res = await fetch(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json`);
-    let data = await res.json();
-    data.logs = data.logs || [];
+    // 1. 读取本地+云端数据
+    let data = { keys: [], logs: [] };
+    const localStr = localStorage.getItem(STORAGE_KEY);
+    if (localStr) data = JSON.parse(localStr);
 
-    // 检查是否用过
-    if (data.logs.some(i => i.key === key)) {
-      msg.className = "red"; msg.innerText = "❌ 卡密已使用"; return;
+    // 2. 检查卡密是否已使用
+    if (data.logs.some(l => l.key === key)) {
+      msg.className = "red"; msg.innerText = "❌ 该卡密已被使用，无法重复提取！";
+      return;
     }
 
+    // 3. 获取提取额度&过滤可用数据
     const limit = KAMI_LIST[key];
-    const used = new Set(data.logs.flatMap(l => (l.data || "").split("\n").filter(i => i)));
-    const ava = allData.filter(d => !used.has(d));
+    const usedData = new Set(data.logs.flatMap(l => (l.data || "").split("\n").filter(i => i)));
+    const availableData = allData.filter(d => !usedData.has(d));
 
-    if (ava.length < limit) {
-      msg.className = "red"; msg.innerText = "❌ 数据不足"; return;
+    // 4. 检查数据是否充足
+    if (availableData.length < limit) {
+      msg.className = "red"; msg.innerText = `❌ 剩余数据不足${limit}条，当前仅剩${availableData.length}条！`;
+      return;
     }
 
-    result = ava.slice(0, limit);
+    // 5. 提取数据
+    resultData = availableData.slice(0, limit);
+    const resultText = resultData.join("\n");
 
-    // 写入记录 → 这一步保证你后台能看见！
+    // 6. 更新卡密状态（标记为已使用）
+    data.keys = data.keys.map(k => {
+      if (k.key === key) k.used = true;
+      return k;
+    });
+
+    // 7. 添加提取记录（后台能看到的核心）
     data.logs.push({
       name: name,
       key: key,
       count: limit,
       time: new Date().toLocaleString(),
-      data: result.join("\n")
+      data: resultText
     });
 
-    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-      method: "PATCH",
-      headers: { Authorization: `token ${GIST_TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ files: { "data.json": { content: JSON.stringify(data, null, 2) } } })
-    });
+    // 8. 双存储：本地+云端
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    await saveToGist(data);
 
-    document.getElementById("resultArea").innerText = result.join("\n");
-    document.getElementById("resultArea").classList.remove("hide");
-    document.getElementById("copyBtn").classList.remove("hide");
-    document.getElementById("downloadBtn").classList.remove("hide");
+    // 9. 显示结果
+    resultArea.innerText = resultText;
+    resultArea.classList.remove("hide");
+    copyBtn.classList.remove("hide");
+    downloadBtn.classList.remove("hide");
     msg.className = "green";
-    msg.innerText = `✅ 提取成功 ${limit} 条`;
-    updateRemain();
-  } catch (err) {
-    msg.className = "red";
-    msg.innerText = "❌ 提取失败";
-    console.error(err);
+    msg.innerText = `✅ 提取成功！共提取${limit}条数据`;
+    updateRemainData(); // 刷新剩余数据
+
+  } catch (e) {
+    msg.className = "red"; msg.innerText = "❌ 提取失败，请刷新页面重试！";
+    console.error(e);
   }
 }
 
+// 复制数据
 function copyResult() {
-  navigator.clipboard.writeText(result.join("\n")).then(() => alert("复制成功"));
+  navigator.clipboard.writeText(resultData.join("\n")).then(() => {
+    alert("✅ 数据已成功复制到剪贴板！");
+  }).catch(() => {
+    alert("❌ 复制失败，请手动复制！");
+  });
 }
 
+// 下载TXT
 function downloadTxt() {
-  const blob = new Blob([result.join("\n")], { type: "text/plain;charset=utf-8" });
+  const name = document.getElementById("name").value.trim() || "用户";
+  const blob = new Blob([resultData.join("\n")], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `${document.getElementById("name").value || "数据"}.txt`;
+  a.download = `${name}_${new Date().getTime()}_提取数据.txt`;
   a.click();
 }
-
-window.onload = loadData;
 </script>
