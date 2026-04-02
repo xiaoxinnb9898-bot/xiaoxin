@@ -42,109 +42,98 @@ button{cursor:pointer;border:none;color:#fff}
 const GIST_ID = "2f260b4654ae345630ef14017f240703";
 const GIST_TOKEN = "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";
 const DATA_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.txt";
-const JSON_URL = `https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json?t=${Date.now()}`;
+const PROXY = "https://api.allorigins.win/get?url=";
+const RAW_URL = encodeURIComponent(`https://gist.githubusercontent.com/xiaoxinnb9898-bot/${GIST_ID}/raw/data.json`);
+const JSON_URL = PROXY + RAW_URL;
+const API_URL = `https://api.github.com/gists/${GIST_ID}`;
 
 let allData = [];
 let result = [];
 
-async function loadData(){
-  const r = await fetch(DATA_URL+"?t="+Date.now(), { cache: "no-store" });
+async function loadData() {
+  const r = await fetch(DATA_URL + "?t=" + Date.now());
   const t = await r.text();
-  allData = t.split("\n").map(i=>i.trim()).filter(i=>i);
-  await updateRemain();
+  allData = t.split("\n").map(i => i.trim()).filter(i => i);
+  updateRemain();
 }
 
-async function updateRemain(){
-  const res = await fetch(JSON_URL, { cache: "no-store" });
-  const data = await res.json();
-  const used = data.logs ? data.logs.flatMap(l=> (l.data || "").split("\n").filter(i=>i)) : [];
-  const remain = allData.filter(d=>!used.includes(d)).length;
-  document.getElementById("remain").innerText = `剩余可用：${remain} 条`;
+async function updateRemain() {
+  try {
+    let res = await fetch(JSON_URL + "&t=" + Date.now());
+    let json = await res.json();
+    let data = JSON.parse(json.contents);
+    const used = data.logs ? data.logs.flatMap(l => (l.data || "").split("\n").filter(i => i)) : [];
+    const remain = allData.filter(d => !used.includes(d)).length;
+    document.getElementById("remain").innerText = `剩余可用：${remain} 条`;
+  } catch (e) {}
 }
 
-async function getData(){
+async function getData() {
   const name = document.getElementById("name").value.trim();
-  const cnt = parseInt(document.getElementById("count").value)||1;
+  const cnt = parseInt(document.getElementById("count").value) || 1;
   const key = document.getElementById("key").value.trim().toUpperCase();
   const msg = document.getElementById("msg");
 
-  if(!name){msg.className="red";msg.innerText="❌ 请输入名字";return;}
-  if(cnt<1){msg.className="red";msg.innerText="❌ 至少1条";return;}
-  if(!key){msg.className="red";msg.innerText="❌ 请输入提取码";return;}
+  if (!name) { msg.className = "red"; msg.innerText = "❌ 请输入名字"; return; }
+  if (cnt < 1) { msg.className = "red"; msg.innerText = "❌ 至少1条"; return; }
+  if (!key) { msg.className = "red"; msg.innerText = "❌ 请输入提取码"; return; }
 
   try {
-    const res = await fetch(JSON_URL, { cache: "no-store" });
-    const data = await res.json();
+    let res = await fetch(JSON_URL + "&t=" + Date.now());
+    let json = await res.json();
+    let data = JSON.parse(json.contents);
     data.keys = data.keys || [];
-    
-    const findKey = data.keys.find(k => k.key === key && k.used === false);
 
-    if(!findKey){
-      msg.className="red";
-      msg.innerText="❌ 提取码无效/已使用！";
-      return;
-    }
+    const find = data.keys.find(k => k.key === key && !k.used);
+    if (!find) { msg.className = "red"; msg.innerText = "❌ 提取码无效/已使用"; return; }
 
-    const used = data.logs ? data.logs.flatMap(l=> (l.data || "").split("\n").filter(i=>i)) : [];
-    const ava = allData.filter(d=>!used.includes(d));
+    const used = data.logs ? data.logs.flatMap(l => (l.data || "").split("\n").filter(i => i)) : [];
+    const ava = allData.filter(d => !used.includes(d));
+    if (ava.length === 0) { msg.className = "red"; msg.innerText = "❌ 已发完"; return; }
+    if (cnt > ava.length) { msg.className = "red"; msg.innerText = `❌ 仅剩 ${ava.length} 条`; return; }
 
-    if(ava.length===0){
-      msg.className="red";msg.innerText="❌ 数据已全部发完！";return;
-    }
-    if(cnt>ava.length){
-      msg.className="red";msg.innerText=`❌ 仅剩 ${ava.length} 条数据`;return;
-    }
-
-    result = ava.slice(0,cnt);
-    findKey.used = true;
+    result = ava.slice(0, cnt);
+    find.used = true;
     data.logs = data.logs || [];
-    data.logs.push({
-      name: name,
-      count: cnt,
-      time: new Date().toLocaleString(),
-      data: result.join("\n")
-    });
+    data.logs.push({ name, count: cnt, time: new Date().toLocaleString(), data: result.join("\n") });
 
-    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+    await fetch(API_URL, {
       method: "PATCH",
       headers: {
         "Authorization": `token ${GIST_TOKEN}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        files: {
-          "data.json": { content: JSON.stringify(data, null, 2) }
-        }
+        files: { "data.json": { content: JSON.stringify(data, null, 2) } }
       })
     });
 
     await updateRemain();
-
     document.getElementById("resultArea").innerText = result.join("\n");
     document.getElementById("resultArea").classList.remove("hide");
     document.getElementById("copyBtn").classList.remove("hide");
     document.getElementById("downloadBtn").classList.remove("hide");
-    msg.className="green";
-    msg.innerText="✅ 提取成功！";
+    msg.className = "green";
+    msg.innerText = "✅ 提取成功！";
   } catch (err) {
-    msg.className="red";
-    msg.innerText="❌ 操作失败";
+    msg.className = "red";
+    msg.innerText = "❌ 操作失败";
     console.error(err);
   }
 }
 
-function copyResult(){
-  navigator.clipboard.writeText(result.join("\n")).then(()=>alert("✅ 复制成功！"));
+function copyResult() {
+  navigator.clipboard.writeText(result.join("\n")).then(() => alert("✅ 复制成功！"));
 }
 
-function downloadTxt(){
+function downloadTxt() {
   const name = document.getElementById("name").value.trim() || "用户";
-  const b = new Blob([result.join("\n")], {type:"text/plain;charset=utf-8"});
+  const blob = new Blob([result.join("\n")], { type: "text/plain;charset=utf-8" });
   const a = document.createElement("a");
-  a.href=URL.createObjectURL(b);
-  a.download=name+"_提取数据.txt";
+  a.href = URL.createObjectURL(blob);
+  a.download = name + "_数据.txt";
   a.click();
 }
 
-window.onload = ()=>loadData();
+window.onload = loadData;
 </script>
