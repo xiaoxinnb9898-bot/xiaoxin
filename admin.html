@@ -4,28 +4,29 @@
 <style>
 *{box-sizing:border-box}
 body{background:#f5f7fa;font-family:微软雅黑;padding:20px}
-.box{max-width:600px;margin:40px auto;background:#fff;padding:30px;border-radius:20px;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+.box{max-width:700px;margin:40px auto;background:#fff;padding:30px;border-radius:20px;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
 input,button{width:100%;padding:14px;margin:8px 0;border-radius:12px;border:1px solid #ddd}
 button{background:#007bff;color:white;border:none;cursor:pointer}
+.btn-download{background:#28a745}
 .danger{background:#dc3545}
-.logs{max-height:400px;overflow-y:auto;margin-top:20px}
-.item{padding:12px;border-bottom:1px solid #eee}
+.logs{max-height:600px;overflow-y:auto;margin-top:20px}
+.item{padding:16px;border-bottom:1px solid #eee}
 .center{text-align:center}
 .red{color:red}
 .green{color:green}
 </style>
 
 <div class="box" id="login">
-  <h2>🔑 登录</h2>
+  <h2>🔑 管理员登录</h2>
   <input type="password" id="pwd" placeholder="密码：123456">
   <div id="msg" class="red center"></div>
   <button onclick="login()">登录</button>
 </div>
 
 <div class="box" id="admin" style="display:none">
-  <h2>📊 领取记录</h2>
+  <h2>📊 领取记录（含数据备份）</h2>
   <div id="info" class="center green"></div>
-  <button onclick="show()">刷新</button>
+  <button onclick="show()">刷新列表</button>
   <button class="danger" onclick="reset()">清空已发放数据（重置）</button>
   <div class="logs" id="list"></div>
 </div>
@@ -35,7 +36,7 @@ const PWD = "123456";
 const DATA_URL = "https://xiaoxinnb9898-bot.github.io/xiaoxin/data.txt";
 let allData = [];
 
-// 加载数据
+// 加载总数据
 async function loadData() {
   let res = await fetch(DATA_URL + "?t=" + Math.random());
   let txt = await res.text();
@@ -58,20 +59,42 @@ function show() {
   let used = JSON.parse(localStorage.getItem("USED") || "[]").length;
   let total = allData.length;
   let remain = total - used;
-  document.getElementById("info").innerText = `总数据：${total} 条 | 已发放：${used} 条 | 剩余：${remain} 条 | 领取人数：${logs.length} 人`;
+  
+  document.getElementById("info").innerText = 
+    `总数据：${total} 条 | 已发放：${used} 条 | 剩余：${remain} 条 | 领取人数：${logs.length} 人`;
 
   let html = "";
-  logs.forEach(l => {
-    html += `<div class="item">${l.time}<br><strong>${l.name}</strong> → 领取 ${l.count} 条</div>`;
+  logs.forEach((l, i) => {
+    html += `
+    <div class="item">
+      <div>${l.time}</div>
+      <div><strong>${l.name}</strong> → 领取 ${l.count} 条</div>
+      <button class="btn-download" onclick="downloadBackup(${i})">下载该用户领取的完整数据</button>
+    </div>`;
   });
   document.getElementById("list").innerHTML = html || "<div class='item'>暂无记录</div>";
 }
 
+// 核心：下载用户领取的完整数据备份
+function downloadBackup(index) {
+  let logs = JSON.parse(localStorage.getItem("LOGS") || "[]");
+  let log = logs[index];
+  
+  // 生成带名字+时间的备份文件
+  let fileName = `${log.name}_${log.time.replace(/[\/:\s]/g, '_')}_备份数据.txt`;
+  let blob = new Blob([log.data], { type: "text/plain;charset=utf-8" });
+  let a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 function reset() {
-  if (confirm("确定清空所有发放记录？数据将可重新提取")) {
-    localStorage.setItem("USED", "[]");
-    localStorage.setItem("LOGS", "[]");
-    alert("✅ 数据已重置");
+  if (confirm("⚠️ 确定清空所有记录？\n这将重置所有已发放数据，可重新提取！")) {
+    localStorage.setItem("USED", JSON.stringify([]));
+    localStorage.setItem("LOGS", JSON.stringify([]));
+    alert("✅ 数据已全部重置");
     show();
   }
 }
